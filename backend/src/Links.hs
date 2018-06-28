@@ -15,7 +15,8 @@ import LocalCooking.Links.Class (LocalCookingSiteLinks (..))
 import Data.Monoid ((<>))
 import Data.Attoparsec.Text (Parser, parseOnly, char, string, endOfInput)
 import Data.Text (Text)
-import Path (File, Abs, Rel, absdir, absfile, relfile, toFilePath, (</>))
+import Data.Text.Permalink (Permalink, permalinkParser, printPermalink)
+import Path (File, Abs, Rel, absdir, absfile, relfile, toFilePath, (</>), parseRelFile)
 import Path.Extended (Location (..), ToPath (..), ToLocation (..), FromLocation (..), fromAbsFile)
 import qualified Data.Text as T
 import Control.Applicative ((<|>))
@@ -57,26 +58,24 @@ userDetailsToDocumentTitle x = case x of
 
 
 data SiteLinks
-  = RootLink
-  | AboutLink
+  = RootLink (Maybe Permalink)
   | RegisterLink
   | UserDetailsLink (Maybe UserDetailsLinks)
   deriving (Eq, Show, Generic)
 
 instance Arbitrary SiteLinks where
   arbitrary = oneof
-    [ pure RootLink
-    , pure AboutLink
+    [ RootLink <$> arbitrary
     , pure RegisterLink
     , UserDetailsLink <$> arbitrary
     ]
 
--- TODO URI / Location parser
-
 instance ToPath SiteLinks Abs File where
   toPath x = case x of
-    RootLink -> unsafeCoerce [absdir|/|]
-    AboutLink -> [absfile|/about|]
+    RootLink mLink -> case mLink of
+      Nothing -> unsafeCoerce [absdir|/|]
+      Just link -> [absdir|/|] </> case parseRelFile $ T.unpack $ printPermalink link of
+        Just linkFile -> linkFile
     RegisterLink -> [absfile|/register|]
     UserDetailsLink mDetails -> case mDetails of
       Nothing -> [absfile|/userDetails|]
@@ -89,8 +88,8 @@ instance ToLocation SiteLinks where
 instance FromLocation SiteLinks where
   parseLocation (Location {locPath}) =
     case locPath of
-      Left abs | abs == [absdir|/|] -> pure RootLink
-               | otherwise -> fail $ "Unknown abs dir: " ++ toFilePath abs
+      Left abs | abs == [absdir|/|] -> pure (RootLink Nothing)
+               | otherwise          -> fail $ "Unknown abs dir: " ++ toFilePath abs
       Right x -> case parseOnly pathParser $ T.pack $ toFilePath x of
         Left e -> fail (show e)
         Right y -> pure y
@@ -98,8 +97,12 @@ instance FromLocation SiteLinks where
       pathParser :: Parser SiteLinks
       pathParser = do
         divider
-        let root  = RootLink <$ endOfInput
-            about = AboutLink <$ string "about"
+        let blogPost = do
+              let nil = Nothing <$ endOfInput
+                  post = do
+                    divider
+                    Just <$> permalinkParser
+              RootLink <$> (post <|> nil)
             register = RegisterLink <$ string "register"
             userDetails = do
               void (string "userDetails")
@@ -108,16 +111,17 @@ instance FromLocation SiteLinks where
                     divider
                     Just <$> userDetailsLinksParser
               UserDetailsLink <$> (detail <|> nil)
-        register <|> about <|> userDetails <|> root
+        register <|> userDetails <|> blogPost
       divider = void (char '/')
 
 instance LocalCookingSiteLinks SiteLinks where
-  rootLink = RootLink
+  rootLink = RootLink Nothing
   registerLink = RegisterLink
   toDocumentTitle x =
     ( case x of
-        RootLink -> ""
-        AboutLink -> "About - "
+        RootLink mPost -> case mPost of
+          Nothing -> ""
+          Just post -> printPermalink post <> " - "
         RegisterLink -> "Register - "
         UserDetailsLink mDetails -> case mDetails of
           Nothing -> "User Details - "

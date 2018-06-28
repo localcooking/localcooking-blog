@@ -50,7 +50,7 @@ httpServer Env{envMkURI} handleAuthToken = do
         , T.encodeUtf8
           $ printURI
           $ envMkURI
-          $ toLocation RootLink
+          $ toLocation $ RootLink Nothing
         )
       ]
 
