@@ -14,7 +14,7 @@ import Links (SiteLinks)
 
 import LocalCooking.Server (LocalCookingArgs (..))
 import LocalCooking.Colors (LocalCookingColors (..))
-import LocalCooking.Dependencies.Content (contentDependencies)
+import LocalCooking.Dependencies.Blog (blogDependencies)
 import LocalCooking.Dependencies.Tag (tagDependencies)
 
 import Text.Lucius (Color (..))
@@ -27,7 +27,7 @@ server = LocalCookingArgs
   , localCookingArgsFavicons = favicons
   , localCookingArgsHTTP = httpServer
   , localCookingArgsDeps = do
-      contentDependencies
+      blogDependencies
       tagDependencies
   , localCookingArgsColors = LocalCookingColors
     { localCookingColorsMain = Color 114 91 83
