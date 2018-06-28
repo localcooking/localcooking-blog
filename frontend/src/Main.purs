@@ -68,7 +68,7 @@ type Effects =
 
 main :: Eff Effects Unit
 main = do
-  log "Starting Local Cooking Editors frontend..."
+  log "Starting Local Cooking Blog frontend..."
 
   contentQueues <- newContentQueues
   tagQueues <- newTagQueues

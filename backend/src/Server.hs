@@ -30,8 +30,8 @@ server = LocalCookingArgs
       contentDependencies
       tagDependencies
   , localCookingArgsColors = LocalCookingColors
-    { localCookingColorsMain = Color 200 135 25
-    , localCookingColorsActive = Color 255 183 77
-    , localCookingColorsHover = Color 255 233 125
+    { localCookingColorsMain = Color 114 91 83
+    , localCookingColorsActive = Color 161 136 127
+    , localCookingColorsHover = Color 211 184 174
     }
   }

@@ -1,6 +1,6 @@
-name:                localcooking-content
+name:                localcooking-blog
 version:             0.0.0
-git:                 "git://git.localcooking.com/localcooking/localcooking-content.git"
+git:                 "git://git.localcooking.com/localcooking/localcooking-blog.git"
 license:             BSD3
 author:              "Athan Clark"
 maintainer:          "athan.clark@localcooking.com"
@@ -55,7 +55,7 @@ library:
     - wai-transformers >= 0.1.0
 
 executables:
-  localcooking-content:
+  localcooking-blog:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -64,7 +64,7 @@ executables:
     - -Wall
     - -with-rtsopts=-N
     dependencies:
-    - localcooking-content
+    - localcooking-blog
     - localcooking-template
 
 tests:
@@ -77,7 +77,7 @@ tests:
     - -with-rtsopts=-N
     - -Wall
     dependencies:
-    - localcooking-content
+    - localcooking-blog
     - localcooking-db
     - localcooking-template
     - aeson
