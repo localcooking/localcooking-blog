@@ -11,8 +11,7 @@ import Spec.Snackbar (messages)
 import LocalCooking.Types.ServerToClient (env)
 import LocalCooking.Main (defaultMain)
 import LocalCooking.Spec.Misc.Branding (mainBrand)
-import LocalCooking.Dependencies.Content (contentDependencies, newContentQueues)
-import LocalCooking.Dependencies.Tag (tagDependencies, newTagQueues, mountTagSearchQueues)
+import LocalCooking.Dependencies.Blog (blogDependencies, newBlogQueues)
 import LocalCooking.Global.Links.Internal (ImageLinks (Logo40Png))
 
 import Prelude
@@ -70,25 +69,14 @@ main :: Eff Effects Unit
 main = do
   log "Starting Local Cooking Blog frontend..."
 
-  contentQueues <- newContentQueues
-  tagQueues <- newTagQueues
+  blogQueues <- newBlogQueues
   siteErrorQueue <- One.newQueue
-
-  tagSearch <- mountTagSearchQueues tagQueues
-    { onChefTagSearchResult: \_ -> pure unit
-    , onCultureTagSearchResult: \_ -> pure unit
-    , onDietTagSearchResult: \_ -> pure unit
-    , onFarmTagSearchResult: \_ -> pure unit
-    , onIngredientTagSearchResult: \_ -> pure unit
-    , onMealTagSearchResult: \_ -> pure unit
-    }
 
   defaultMain
     { env
     , palette
     , deps: do
-        contentDependencies contentQueues
-        tagDependencies tagQueues
+        blogDependencies blogQueues
     , extraRedirect: \_ _ -> Nothing
     , leftDrawer:
       { buttons: drawersButtons
@@ -97,7 +85,7 @@ main = do
       { imageSrc: toLocation Logo40Png
       , buttons: topbarButtons
       }
-    , content: content
+    , content: \params -> content params {blogQueues}
     , userDetails:
       { buttons: userDetailsButtons
       , content: userDetails

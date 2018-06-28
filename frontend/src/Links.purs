@@ -137,7 +137,7 @@ instance localCookingSiteLinksSiteLinks :: LocalCookingSiteLinks SiteLinks UserD
     UserDetailsLink mDetails -> Just mDetails
     _ -> Nothing
   toDocumentTitle _ = ""
-  subsidiaryTitle _ = " Content"
+  subsidiaryTitle _ = " Blog"
 
 
 -- Policy: don't fail on bad query params / fragment unless you have to

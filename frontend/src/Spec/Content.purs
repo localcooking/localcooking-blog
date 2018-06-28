@@ -4,6 +4,7 @@ import Spec.Content.Root (root)
 import Links (SiteLinks (..))
 import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState)
+import LocalCooking.Dependencies.Blog (BlogQueues)
 
 import Prelude
 import Data.UUID (GENUUID)
@@ -55,9 +56,11 @@ getLCState = lens (_.localCooking) (_ { localCooking = _ })
 
 spec :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
+     -> { blogQueues :: BlogQueues (Effects eff)
+        }
      -> T.Spec (Effects eff) State Unit Action
 spec
-  params = T.simpleSpec performAction render
+  params {blogQueues} = T.simpleSpec performAction render
   where
     performAction action props state = case action of
       LocalCookingAction a -> performActionLocalCooking getLCState a props state
@@ -66,7 +69,7 @@ spec
     render dispatch props state children =
       [ case state.localCooking.currentPage of
           RootLink ->
-            root params
+            root params {blogQueues}
           _ -> R.text ""
       ]
 
@@ -74,12 +77,14 @@ spec
 
 content :: forall eff
          . LocalCookingParams SiteLinks UserDetails (Effects eff)
+        -> { blogQueues :: BlogQueues (Effects eff)
+           }
         -> R.ReactElement
 content
-  params =
+  params {blogQueues} =
   let {spec: reactSpec, dispatcher} =
         T.createReactSpec
-          ( spec params
+          ( spec params {blogQueues}
           ) (initialState (unsafePerformEff (initLocalCookingState params)))
       reactSpec' =
         whileMountedLocalCooking
