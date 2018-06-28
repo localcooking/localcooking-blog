@@ -3,6 +3,7 @@ module Links where
 import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks, class LocalCookingUserDetailsLinks, replaceState', defaultSiteLinksPathParser)
 
 import Prelude
+import Data.String.Permalink (Permalink, permalinkParser)
 import Data.Maybe (Maybe (..))
 import Data.Either (Either (..))
 import Data.URI (Query (..))
@@ -28,21 +29,6 @@ import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (oneOf)
 
 
-
-
-
-data AboutPageLinks
-  = Paragraph1Png
-  | Paragraph2Png
-  | Paragraph3Png
-  | Paragraph4Png
-
-instance toLocationAboutPageLinks :: ToLocation AboutPageLinks where
-  toLocation x = case x of
-    Paragraph1Png -> Location (Right $ rootDir </> dir "static" </> dir "images" </> file "paragraph1-image.png") Nothing Nothing
-    Paragraph2Png -> Location (Right $ rootDir </> dir "static" </> dir "images" </> file "paragraph2-image.png") Nothing Nothing
-    Paragraph3Png -> Location (Right $ rootDir </> dir "static" </> dir "images" </> file "paragraph3-image.png") Nothing Nothing
-    Paragraph4Png -> Location (Right $ rootDir </> dir "static" </> dir "images" </> file "paragraph4-image.png") Nothing Nothing
 
 
 data UserDetailsLinks
@@ -92,17 +78,16 @@ userDetailsLinksParser = do
 
 
 data SiteLinks
-  = RootLink
+  = RootLink (Maybe Permalink)
   | RegisterLink
   | UserDetailsLink (Maybe UserDetailsLinks)
   | EmailConfirmLink
 
 instance arbitrarySiteLinks :: Arbitrary SiteLinks where
   arbitrary = oneOf $
-        (pure RootLink)
+        (RootLink <$> arbitrary)
     :|  [ pure RegisterLink
-        , do mUserDetails <- arbitrary
-             pure (UserDetailsLink mUserDetails)
+        , UserDetailsLink <$> arbitrary
         , pure EmailConfirmLink
         ]
 
@@ -117,7 +102,9 @@ instance eqSiteLinks :: Eq SiteLinks where
 
 instance toLocationSiteLinks :: ToLocation SiteLinks where
   toLocation x = case x of
-    RootLink  -> Location (Left rootDir) Nothing Nothing
+    RootLink mPost -> case mPost of
+      Nothing -> Location (Left rootDir) Nothing Nothing
+      Just post -> Location (Right $ rootDir </> file (show post)) Nothing Nothing
     RegisterLink -> Location (Right $ rootDir </> file "register") Nothing Nothing
     EmailConfirmLink -> Location (Right $ rootDir </> file "emailConfirm") Nothing Nothing
     UserDetailsLink mUserDetails ->
@@ -129,7 +116,7 @@ instance toLocationSiteLinks :: ToLocation SiteLinks where
 
 
 instance localCookingSiteLinksSiteLinks :: LocalCookingSiteLinks SiteLinks UserDetailsLinks where
-  rootLink = RootLink
+  rootLink = RootLink Nothing
   registerLink = RegisterLink
   userDetailsLink = UserDetailsLink
   emailConfirmLink = EmailConfirmLink
@@ -151,10 +138,10 @@ instance fromLocationSiteLinks :: FromLocation SiteLinks where
       siteLinksPathParser = do
         divider
         let def = defaultSiteLinksPathParser userDetailsLinksParser
-            emailConfirm = do
-              void (string "emailConfirm")
-              pure EmailConfirmLink
+            blogPost = RootLink <<< Just <$> permalinkParser
+            emailConfirm = EmailConfirmLink <$ string "emailConfirm"
         try emailConfirm
+          <|> try blogPost
           <|> def
         where
           divider = void (char '/')

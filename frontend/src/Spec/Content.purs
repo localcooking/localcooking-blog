@@ -7,10 +7,12 @@ import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, Loca
 import LocalCooking.Dependencies.Blog (BlogQueues)
 
 import Prelude
+import Data.Maybe (Maybe)
 import Data.UUID (GENUUID)
 import Data.URI (URI)
 import Data.URI.Location (Location)
 import Data.Lens (Lens', Prism', lens, prism')
+import Data.String.Permalink (Permalink)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff, unsafePerformEff)
@@ -26,6 +28,7 @@ import Crypto.Scrypt (SCRYPT)
 
 import IxSignal.Internal (IxSignal)
 import IxSignal.Internal as IxSignal
+import Queue.One.Aff as OneIO
 
 
 
@@ -66,12 +69,15 @@ spec
       LocalCookingAction a -> performActionLocalCooking getLCState a props state
 
     render :: T.Render State Unit Action
-    render dispatch props state children =
-      [ case state.localCooking.currentPage of
-          RootLink ->
-            root params {blogQueues}
-          _ -> R.text ""
-      ]
+    render dispatch props state children = case state.localCooking.currentPage of
+      RootLink _ ->
+        [ root params {blogQueues,openBlogPostQueues}
+        -- , TODO blog post dialog
+        ]
+      _ -> []
+
+    openBlogPostQueues :: OneIO.IOQueues (Effects eff) Permalink (Maybe Unit)
+    openBlogPostQueues = unsafePerformEff OneIO.newIOQueues
 
 
 
