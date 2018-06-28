@@ -79,6 +79,7 @@ userDetailsLinksParser = do
 
 data SiteLinks
   = RootLink (Maybe Permalink)
+  | NewBlogPostLink
   | RegisterLink
   | UserDetailsLink (Maybe UserDetailsLinks)
   | EmailConfirmLink
@@ -87,6 +88,7 @@ instance arbitrarySiteLinks :: Arbitrary SiteLinks where
   arbitrary = oneOf $
         (RootLink <$> arbitrary)
     :|  [ pure RegisterLink
+        , pure NewBlogPostLink
         , UserDetailsLink <$> arbitrary
         , pure EmailConfirmLink
         ]
@@ -105,6 +107,7 @@ instance toLocationSiteLinks :: ToLocation SiteLinks where
     RootLink mPost -> case mPost of
       Nothing -> Location (Left rootDir) Nothing Nothing
       Just post -> Location (Right $ rootDir </> file (show post)) Nothing Nothing
+    NewBlogPostLink -> Location (Right $ rootDir </> file "newBlogPost") Nothing Nothing
     RegisterLink -> Location (Right $ rootDir </> file "register") Nothing Nothing
     EmailConfirmLink -> Location (Right $ rootDir </> file "emailConfirm") Nothing Nothing
     UserDetailsLink mUserDetails ->
@@ -139,8 +142,10 @@ instance fromLocationSiteLinks :: FromLocation SiteLinks where
         divider
         let def = defaultSiteLinksPathParser userDetailsLinksParser
             blogPost = RootLink <<< Just <$> permalinkParser
+            newBlogPost = NewBlogPostLink <$ string "newBlogPost"
             emailConfirm = EmailConfirmLink <$ string "emailConfirm"
         try emailConfirm
+          <|> try newBlogPost
           <|> try blogPost
           <|> def
         where

@@ -1,12 +1,13 @@
 module Spec.Content.Root where
 
-import Links (SiteLinks)
-import User (UserDetails)
+import Links (SiteLinks (NewBlogPostLink))
+import User (UserDetails (..))
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState)
 import LocalCooking.Database.Schema (StoredBlogPostId)
-import LocalCooking.Semantics.Blog (BlogPostSynopsis (..))
-import LocalCooking.Semantics.Common (WithId (..))
+import LocalCooking.Semantics.Blog (BlogPostSynopsis (..), GetBlogPost)
+import LocalCooking.Semantics.Common (WithId (..), User (..))
 import LocalCooking.Dependencies.Blog (BlogQueues)
+import LocalCooking.Common.User.Role (UserRole (Editor))
 
 import Prelude
 import Data.Maybe (Maybe (..))
@@ -30,6 +31,7 @@ import Thermite as T
 import React (ReactElement, createClass, createElement) as R
 import React.DOM (div, em, img, strong, text) as R
 import React.DOM.Props as RP
+import React.DOM.Props.PreventDefault (preventDefault)
 import React.Signal.WhileMounted as Signal
 import React.Queue.WhileMounted as Queue
 import DOM.HTML.Window.Extra (WindowSize (Laptop))
@@ -37,6 +39,8 @@ import DOM.HTML.Window.Extra (WindowSize (Laptop))
 import MaterialUI.Types (createStyles)
 import MaterialUI.Typography (typography)
 import MaterialUI.Typography as Typography
+import MaterialUI.Button (button)
+import MaterialUI.Button as Button
 import MaterialUI.Divider (divider)
 import MaterialUI.Grid (grid)
 import MaterialUI.Grid as Grid
@@ -77,6 +81,7 @@ data Action
   = LocalCookingAction (LocalCookingAction SiteLinks UserDetails)
   | GotBlogPosts (Array (WithId StoredBlogPostId BlogPostSynopsis))
   | OpenBlogPost Permalink
+  | OpenNewBlogPost
 
 type Effects eff =
   ( ref       :: REF
@@ -90,17 +95,21 @@ getLCState = lens (_.localCooking) (_ { localCooking = _ })
 
 spec :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
-     -> { openBlogPostQueues :: OneIO.IOQueues (Effects eff) Permalink (Maybe Unit)
+     -> { openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
+        , blogQueues :: BlogQueues (Effects eff)
         }
      -> T.Spec (Effects eff) State Unit Action
-spec params {openBlogPostQueues} = T.simpleSpec performAction render
+spec params {openBlogPostQueues,blogQueues} = T.simpleSpec performAction render
   where
     performAction action props state = case action of
       LocalCookingAction a -> performActionLocalCooking getLCState a props state
       GotBlogPosts xs -> void $ T.cotransform _ {blogPosts = Just xs}
+      OpenNewBlogPost -> liftEff $ params.siteLinks NewBlogPostLink
       OpenBlogPost permalink -> do
-        void $ liftBase $ OneIO.callAsync openBlogPostQueues permalink
-        -- FIXME obtain GetBlogPost here, then push to dialog
+        mPost <- liftBase $ OneIO.callAsync blogQueues.getBlogPostQueues permalink
+        case mPost of
+          Nothing -> liftEff $ unsafeCoerceEff $ warn $ "couldn't find blog post! " <> show permalink
+          Just post -> void $ liftBase $ OneIO.callAsync openBlogPostQueues post
 
     render :: T.Render State Unit Action
     render dispatch props state children =
@@ -113,6 +122,20 @@ spec params {openBlogPostQueues} = T.simpleSpec performAction render
         , style: createStyles {marginBottom: "1em"}
         } [R.text "Blog Posts"]
       , divider {}
+      , case state.localCooking.userDetails of
+          Nothing -> R.text ""
+          Just (UserDetails {user: User {roles}})
+            | not (Array.elem Editor roles) -> R.text ""
+            | otherwise ->
+              button
+                { variant: Button.raised
+                , color: Button.primary
+                , onClick: mkEffFn1 preventDefault
+                , onTouchTap: mkEffFn1 \e -> do
+                    preventDefault e
+                    dispatch OpenNewBlogPost
+                , href: URI.print $ params.toURI $ toLocation NewBlogPostLink
+                } [R.text "New Blog Post"]
       , case state.blogPosts of
           Nothing -> circularProgress {mode: CircularProgress.indeterminate}
           Just xs
@@ -146,13 +169,13 @@ spec params {openBlogPostQueues} = T.simpleSpec performAction render
 root :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { blogQueues :: BlogQueues (Effects eff)
-        , openBlogPostQueues :: OneIO.IOQueues (Effects eff) Permalink (Maybe Unit)
+        , openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
         }
      -> R.ReactElement
 root params {blogQueues,openBlogPostQueues} =
   let {spec: reactSpec, dispatcher} =
         T.createReactSpec
-          ( spec params {openBlogPostQueues}
+          ( spec params {openBlogPostQueues,blogQueues}
           ) (initialState (unsafePerformEff (initLocalCookingState params)))
       OneIO.IOQueues{input: getBlogPostsInput, output: getBlogPostsOutput} =
         blogQueues.getBlogPostsQueues

@@ -1,10 +1,12 @@
 module Spec.Content where
 
 import Spec.Content.Root (root)
+import Spec.Dialogs.BlogPost (blogPostDialog)
 import Links (SiteLinks (..))
 import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState)
 import LocalCooking.Dependencies.Blog (BlogQueues)
+import LocalCooking.Semantics.Blog (GetBlogPost)
 
 import Prelude
 import Data.Maybe (Maybe)
@@ -23,8 +25,8 @@ import Thermite as T
 import React (ReactElement, createClass, createElement) as R
 import React.DOM (text) as R
 import React.Signal.WhileMounted as Signal
+import DOM (DOM)
 import DOM.HTML.Window.Extra (WindowSize)
-import Crypto.Scrypt (SCRYPT)
 
 import IxSignal.Internal (IxSignal)
 import IxSignal.Internal as IxSignal
@@ -50,7 +52,7 @@ type Effects eff =
   , exception :: EXCEPTION
   , uuid      :: GENUUID
   , console   :: CONSOLE
-  , scrypt    :: SCRYPT
+  , dom       :: DOM
   | eff)
 
 getLCState :: Lens' State (LocalCookingState SiteLinks UserDetails)
@@ -72,12 +74,17 @@ spec
     render dispatch props state children = case state.localCooking.currentPage of
       RootLink _ ->
         [ root params {blogQueues,openBlogPostQueues}
-        -- , TODO blog post dialog
+        , blogPostDialog params {openBlogPostQueues}
         ]
       _ -> []
 
-    openBlogPostQueues :: OneIO.IOQueues (Effects eff) Permalink (Maybe Unit)
+    openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
     openBlogPostQueues = unsafePerformEff OneIO.newIOQueues
+    -- FIXME raise this queue up to the top level - route parsing needs to
+    -- call this, with the permalink parsed.
+    -- I wonder... can I encode them into an `extraSiteLinksInvocations`? Such that
+    -- `siteLinks` drives their openings? Would the dialog's `close` need to
+    -- drive a "return/back" (or explicitly chosen one)?
 
 
 
