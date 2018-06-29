@@ -65,7 +65,7 @@ newBlogPostDialog
   , closeQueue: Nothing
   , buttons: \_ -> []
   , title: \_ -> "New Blog Post"
-  , submitValue: Nothing
+  , submitValue: Just "Submit"
   , pends: false
   , content:
     { component: \_ ->

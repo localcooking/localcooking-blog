@@ -77,6 +77,7 @@ main = do
     , palette
     , deps: do
         blogDependencies blogQueues
+    , extraProcessing: \_ _ -> pure unit
     , extraRedirect: \_ _ -> Nothing
     , leftDrawer:
       { buttons: drawersButtons
