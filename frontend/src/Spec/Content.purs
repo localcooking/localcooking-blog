@@ -2,11 +2,12 @@ module Spec.Content where
 
 import Spec.Content.Root (root)
 import Spec.Dialogs.BlogPost (blogPostDialog)
+import Spec.Dialogs.NewBlogPost (newBlogPostDialog)
 import Links (SiteLinks (..))
 import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState)
 import LocalCooking.Dependencies.Blog (BlogQueues)
-import LocalCooking.Semantics.Blog (GetBlogPost)
+import LocalCooking.Semantics.Blog (GetBlogPost, NewBlogPost)
 
 import Prelude
 import Data.Maybe (Maybe)
@@ -73,13 +74,16 @@ spec
     render :: T.Render State Unit Action
     render dispatch props state children = case state.localCooking.currentPage of
       RootLink _ ->
-        [ root params {blogQueues,openBlogPostQueues}
+        [ root params {blogQueues,openBlogPostQueues,newBlogPostQueues}
         , blogPostDialog params {openBlogPostQueues}
+        , newBlogPostDialog params {newBlogPostQueues}
         ]
       _ -> []
 
     openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
     openBlogPostQueues = unsafePerformEff OneIO.newIOQueues
+    newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+    newBlogPostQueues = unsafePerformEff OneIO.newIOQueues
     -- FIXME raise this queue up to the top level - route parsing needs to
     -- call this, with the permalink parsed.
     -- I wonder... can I encode them into an `extraSiteLinksInvocations`? Such that

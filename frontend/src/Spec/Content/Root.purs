@@ -4,7 +4,7 @@ import Links (SiteLinks (NewBlogPostLink))
 import User (UserDetails (..))
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState)
 import LocalCooking.Database.Schema (StoredBlogPostId)
-import LocalCooking.Semantics.Blog (BlogPostSynopsis (..), GetBlogPost)
+import LocalCooking.Semantics.Blog (BlogPostSynopsis (..), GetBlogPost, NewBlogPost)
 import LocalCooking.Semantics.Common (WithId (..), User (..))
 import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Common.User.Role (UserRole (Editor))
@@ -96,15 +96,22 @@ getLCState = lens (_.localCooking) (_ { localCooking = _ })
 spec :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
+        , newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
         , blogQueues :: BlogQueues (Effects eff)
         }
      -> T.Spec (Effects eff) State Unit Action
-spec params {openBlogPostQueues,blogQueues} = T.simpleSpec performAction render
+spec params
+  { openBlogPostQueues
+  , newBlogPostQueues
+  , blogQueues
+  } = T.simpleSpec performAction render
   where
     performAction action props state = case action of
       LocalCookingAction a -> performActionLocalCooking getLCState a props state
       GotBlogPosts xs -> void $ T.cotransform _ {blogPosts = Just xs}
-      OpenNewBlogPost -> liftEff $ params.siteLinks NewBlogPostLink
+      OpenNewBlogPost -> do -- liftEff $ params.siteLinks NewBlogPostLink
+        mNewPost <- liftBase $ OneIO.callAsync newBlogPostQueues unit
+        pure unit -- FIXME
       OpenBlogPost permalink -> do
         mPost <- liftBase $ OneIO.callAsync blogQueues.getBlogPostQueues permalink
         case mPost of
@@ -170,12 +177,13 @@ root :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { blogQueues :: BlogQueues (Effects eff)
         , openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
+        , newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
         }
      -> R.ReactElement
-root params {blogQueues,openBlogPostQueues} =
+root params args@{blogQueues} =
   let {spec: reactSpec, dispatcher} =
         T.createReactSpec
-          ( spec params {openBlogPostQueues,blogQueues}
+          ( spec params args
           ) (initialState (unsafePerformEff (initLocalCookingState params)))
       OneIO.IOQueues{input: getBlogPostsInput, output: getBlogPostsOutput} =
         blogQueues.getBlogPostsQueues

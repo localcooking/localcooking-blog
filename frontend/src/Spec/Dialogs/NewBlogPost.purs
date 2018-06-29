@@ -47,14 +47,14 @@ type Effects eff =
 
 
 
-blogPostDialog :: forall eff siteLinks userDetails userDetailsLinks
-                     . LocalCookingSiteLinks siteLinks userDetailsLinks
-                    => ToLocation siteLinks
-                    => LocalCookingParams siteLinks userDetails (Effects eff)
-                    -> { newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
-                       } -- FIXME Just take GetBlogPost as input? Leave that up to caller
-                    -> R.ReactElement
-blogPostDialog
+newBlogPostDialog :: forall eff siteLinks userDetails userDetailsLinks
+                   . LocalCookingSiteLinks siteLinks userDetailsLinks
+                  => ToLocation siteLinks
+                  => LocalCookingParams siteLinks userDetails (Effects eff)
+                  -> { newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+                     } -- FIXME Just take GetBlogPost as input? Leave that up to caller
+                  -> R.ReactElement
+newBlogPostDialog
   params@{toURI}
   { newBlogPostQueues
   } =
