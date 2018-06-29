@@ -8,6 +8,7 @@ import LocalCooking.Spec.Dialogs.Generic (genericDialog)
 import LocalCooking.Semantics.Blog (NewBlogPost (..))
 import LocalCooking.Spec.Common.Form.Text as Text
 import LocalCooking.Spec.Common.Form.Permalink as Permalink
+import LocalCooking.Spec.Common.Form.Markdown as Markdown
 
 import Prelude
 import Data.URI.URI (print) as URI
@@ -84,19 +85,29 @@ newBlogPostDialog
         , permalinkSignal: permalinkSignal
         , setQueue: permalinkSetQueue
         }
-      -- , -- FIXME show markdown with markdown thingy
+      , Markdown.markdown
+        { label: R.text "Content"
+        , fullWidth: true
+        , id: "content"
+        , updatedQueue: contentUpdatedQueue
+        , markdownSignal: contentSignal
+        , setQueue: contentSetQueue
+        }
       -- TODO edit button for those who deserve it :|
       ]
     , obtain: \_ -> do
-      headline <- liftEff $ IxSignal.get headlineSignal
       mPermalink <- liftEff $ IxSignal.get permalinkSignal
       case mPermalink of
         Permalink.PermalinkPartial _ -> pure Nothing
         Permalink.PermalinkBad _ -> pure Nothing
         Permalink.PermalinkGood permalink -> do
-          let content = MarkdownText ""
+          headline <- liftEff $ IxSignal.get headlineSignal
+          content <- liftEff $ IxSignal.get contentSignal
           pure $ Just $ NewBlogPost {headline,permalink,content}
-    , reset: pure unit
+    , reset: do
+        One.putQueue headlineSetQueue ""
+        One.putQueue permalinkSetQueue (Permalink.PermalinkPartial "")
+        One.putQueue contentSetQueue (MarkdownText "")
     }
   }
   where
@@ -106,3 +117,6 @@ newBlogPostDialog
     permalinkUpdatedQueue = unsafePerformEff $ readOnly <$> IxQueue.newIxQueue
     permalinkSignal = unsafePerformEff $ IxSignal.make $ Permalink.PermalinkPartial ""
     permalinkSetQueue = unsafePerformEff $ writeOnly <$> One.newQueue
+    contentUpdatedQueue = unsafePerformEff $ readOnly <$> IxQueue.newIxQueue
+    contentSignal = unsafePerformEff $ IxSignal.make $ MarkdownText ""
+    contentSetQueue = unsafePerformEff $ writeOnly <$> One.newQueue

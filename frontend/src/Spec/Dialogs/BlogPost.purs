@@ -24,6 +24,7 @@ import MaterialUI.Grid as Grid
 import React (ReactElement) as R
 import React.DOM (text) as R
 import React.DOM.Props as RP
+import React.Markdown as ReactMarkdown
 import DOM (DOM)
 
 import Queue.One.Aff as OneIO
@@ -67,6 +68,7 @@ blogPostDialog
         , grid {xs: 4, item: true}
           [typography {variant: Typography.body1} [R.text $ show timestamp]]
         ]
+      , ReactMarkdown.markdown {source: content, renderers: {}}
       -- , -- FIXME show markdown with markdown thingy
       -- TODO edit button for those who deserve it :|
       ]
