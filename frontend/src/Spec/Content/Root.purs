@@ -109,9 +109,12 @@ spec params
     performAction action props state = case action of
       LocalCookingAction a -> performActionLocalCooking getLCState a props state
       GotBlogPosts xs -> void $ T.cotransform _ {blogPosts = Just xs}
-      OpenNewBlogPost -> do -- liftEff $ params.siteLinks NewBlogPostLink
-        mNewPost <- liftBase $ OneIO.callAsync newBlogPostQueues unit
-        pure unit -- FIXME
+      OpenNewBlogPost -> do
+        liftEff (params.siteLinks NewBlogPostLink)
+        -- mNewPost <- liftBase $ OneIO.callAsync newBlogPostQueues unit
+        -- case mNewPost of
+        --   Nothing -> pure unit
+        --   Just 
       OpenBlogPost permalink -> do
         mPost <- liftBase $ OneIO.callAsync blogQueues.getBlogPostQueues permalink
         case mPost of

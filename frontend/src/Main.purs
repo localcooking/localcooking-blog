@@ -2,6 +2,7 @@ module Main where
 
 import Colors (palette)
 import User (UserDetails (..), PreUserDetails (..))
+import Links (SiteLinks (RootLink, NewBlogPostLink))
 import Spec.Topbar.Buttons (topbarButtons)
 import Spec.Drawers.Buttons (drawersButtons)
 import Spec.Content (content)
@@ -12,6 +13,8 @@ import LocalCooking.Types.ServerToClient (env)
 import LocalCooking.Main (defaultMain)
 import LocalCooking.Spec.Misc.Branding (mainBrand)
 import LocalCooking.Dependencies.Blog (blogDependencies, newBlogQueues)
+import LocalCooking.Dependencies.AccessToken.Generic (AccessInitIn (..))
+import LocalCooking.Semantics.Blog (NewBlogPost)
 import LocalCooking.Global.Links.Internal (ImageLinks (Logo40Png))
 
 import Prelude
@@ -25,7 +28,7 @@ import Control.Monad.Eff.Now (NOW)
 import Control.Monad.Eff.Timer (TIMER)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Ref (REF)
-import Control.Monad.Eff.Console (CONSOLE, log)
+import Control.Monad.Eff.Console (CONSOLE, log, warn)
 import Control.Execution.Immediate (SET_IMMEDIATE_SHIM)
 
 import React.DOM (text) as R
@@ -41,8 +44,10 @@ import WebSocket (WEBSOCKET)
 import Network.HTTP.Affjax (AJAX)
 import Browser.WebStorage (WEB_STORAGE)
 import Crypto.Scrypt (SCRYPT)
+import IxSignal.Extra (onAvailableIx)
 import Queue.Types (readOnly, writeOnly)
 import Queue.One as One
+import Queue.One.Aff as OneIO
 
 
 
@@ -72,12 +77,35 @@ main = do
   blogQueues <- newBlogQueues
   siteErrorQueue <- One.newQueue
 
+  ( newBlogPostQueues :: OneIO.IOQueues Effects Unit (Maybe NewBlogPost)
+    ) <- OneIO.newIOQueues
+
+
   defaultMain
     { env
     , palette
     , deps: do
         blogDependencies blogQueues
-    , extraProcessing: \_ _ -> pure unit
+    , extraProcessing: \link {siteLinks,authTokenSignal} -> case link of
+        NewBlogPostLink ->
+          -- submit new blog post
+          let handleNewBlogPostDialog mNewBlogPost = case mNewBlogPost of
+                Nothing -> siteLinks (RootLink Nothing)
+                Just newBlogPost ->
+                  let withAuthToken authToken =
+                        let newBlogPosted mPostId = case mPostId of
+                              Nothing -> do
+                                warn "Error: couldn't post new blog post?"
+                                siteLinks (RootLink Nothing)
+                              Just newPostId -> do
+                                log $ "Blog posted! " <> show newPostId
+                                siteLinks (RootLink Nothing)
+                        in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
+                              newBlogPosted
+                              (AccessInitIn {token: authToken, subj: newBlogPost})
+                  in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
+          in  OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
+        _ -> pure unit
     , extraRedirect: \_ _ -> Nothing
     , leftDrawer:
       { buttons: drawersButtons
@@ -86,7 +114,7 @@ main = do
       { imageSrc: toLocation Logo40Png
       , buttons: topbarButtons
       }
-    , content: \params -> content params {blogQueues}
+    , content: \params -> content params {blogQueues,newBlogPostQueues}
     , userDetails:
       { buttons: userDetailsButtons
       , content: userDetails

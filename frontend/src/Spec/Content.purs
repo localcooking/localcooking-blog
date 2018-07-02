@@ -63,10 +63,11 @@ getLCState = lens (_.localCooking) (_ { localCooking = _ })
 spec :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { blogQueues :: BlogQueues (Effects eff)
+        , newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
         }
      -> T.Spec (Effects eff) State Unit Action
 spec
-  params {blogQueues} = T.simpleSpec performAction render
+  params {blogQueues,newBlogPostQueues} = T.simpleSpec performAction render
   where
     performAction action props state = case action of
       LocalCookingAction a -> performActionLocalCooking getLCState a props state
@@ -82,8 +83,6 @@ spec
 
     openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
     openBlogPostQueues = unsafePerformEff OneIO.newIOQueues
-    newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
-    newBlogPostQueues = unsafePerformEff OneIO.newIOQueues
     -- FIXME raise this queue up to the top level - route parsing needs to
     -- call this, with the permalink parsed.
     -- I wonder... can I encode them into an `extraSiteLinksInvocations`? Such that
@@ -95,13 +94,14 @@ spec
 content :: forall eff
          . LocalCookingParams SiteLinks UserDetails (Effects eff)
         -> { blogQueues :: BlogQueues (Effects eff)
+           , newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
            }
         -> R.ReactElement
 content
-  params {blogQueues} =
+  params args =
   let {spec: reactSpec, dispatcher} =
         T.createReactSpec
-          ( spec params {blogQueues}
+          ( spec params args
           ) (initialState (unsafePerformEff (initLocalCookingState params)))
       reactSpec' =
         whileMountedLocalCooking
