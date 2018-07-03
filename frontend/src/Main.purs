@@ -25,7 +25,7 @@ import Data.Argonaut.JSONUnit (JSONUnit (..))
 import Control.Monad.Aff (sequential)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Now (NOW)
-import Control.Monad.Eff.Timer (TIMER)
+import Control.Monad.Eff.Timer (TIMER, setTimeout)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Console (CONSOLE, log, warn)
@@ -86,28 +86,27 @@ main = do
     , palette
     , deps: do
         blogDependencies blogQueues
-    , extraProcessing: \link {siteLinks,authTokenSignal} -> do
-        log $ "Link being processed: " <> show link
-        case link of
-          NewBlogPostLink ->
-            -- submit new blog post
-            let handleNewBlogPostDialog mNewBlogPost = case mNewBlogPost of
-                  Nothing -> siteLinks (RootLink Nothing)
-                  Just newBlogPost ->
-                    let withAuthToken authToken =
-                          let newBlogPosted mPostId = case mPostId of
-                                Nothing -> do
-                                  warn "Error: couldn't post new blog post?"
-                                  siteLinks (RootLink Nothing)
-                                Just newPostId -> do
-                                  log $ "Blog posted! " <> show newPostId
-                                  siteLinks (RootLink Nothing)
-                          in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
-                                newBlogPosted
-                                (AccessInitIn {token: authToken, subj: newBlogPost})
-                    in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
-            in  OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
-          _ -> pure unit
+    , extraProcessing: \link {siteLinks,authTokenSignal} -> case link of
+        NewBlogPostLink ->
+          -- submit new blog post
+          let handleNewBlogPostDialog mNewBlogPost = case mNewBlogPost of
+                Nothing -> siteLinks (RootLink Nothing)
+                Just newBlogPost ->
+                  let withAuthToken authToken =
+                        let newBlogPosted mPostId = case mPostId of
+                              Nothing -> do
+                                warn "Error: couldn't post new blog post?"
+                                siteLinks (RootLink Nothing)
+                              Just newPostId -> do
+                                log $ "Blog posted! " <> show newPostId
+                                siteLinks (RootLink Nothing)
+                        in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
+                              newBlogPosted
+                              (AccessInitIn {token: authToken, subj: newBlogPost})
+                  in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
+          in  void $ setTimeout 1000 $
+                OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
+        _ -> pure unit
     , extraRedirect: \_ _ -> Nothing
     , leftDrawer:
       { buttons: drawersButtons
