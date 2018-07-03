@@ -10,7 +10,7 @@
 
 module Server.HTTP where
 
-import Links (SiteLinks (RootLink, UserDetailsLink), UserDetailsLinks (..))
+import Links (SiteLinks (RootLink, NewBlogPostLink, UserDetailsLink), UserDetailsLinks (..))
 
 import LocalCooking.Types (Env (..))
 import LocalCooking.Function.System (SystemM)
@@ -41,7 +41,7 @@ httpServer Env{envMkURI} handleAuthToken = do
   --   match (l_ "diet" </> o_) handleAuthToken
   --   match (l_ "allergies" </> o_) handleAuthToken
   matchGroup (l_ "newBlogPost" </> o_) $
-    matchHere handleAuthToken
+    matchHere $ handleAuthToken NewBlogPostLink
   -- matchGroup (l_ "chefs" </> o_) $
   --   matchHere handleAuthToken
   matchAny $ \_ _ resp -> do

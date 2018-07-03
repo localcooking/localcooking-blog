@@ -59,6 +59,7 @@ userDetailsToDocumentTitle x = case x of
 
 data SiteLinks
   = RootLink (Maybe Permalink)
+  | NewBlogPostLink
   | RegisterLink
   | UserDetailsLink (Maybe UserDetailsLinks)
   deriving (Eq, Show, Generic)
@@ -67,6 +68,7 @@ instance Arbitrary SiteLinks where
   arbitrary = oneof
     [ RootLink <$> arbitrary
     , pure RegisterLink
+    , pure NewBlogPostLink
     , UserDetailsLink <$> arbitrary
     ]
 
@@ -77,6 +79,7 @@ instance ToPath SiteLinks Abs File where
       Just link -> [absdir|/|] </> case parseRelFile $ T.unpack $ printPermalink link of
         Just linkFile -> linkFile
     RegisterLink -> [absfile|/register|]
+    NewBlogPostLink -> [absfile|/newBlogPost|]
     UserDetailsLink mDetails -> case mDetails of
       Nothing -> [absfile|/userDetails|]
       Just d -> [absdir|/userDetails/|] </> toPath d
@@ -103,6 +106,7 @@ instance FromLocation SiteLinks where
                     divider
                     Just <$> permalinkParser
               RootLink <$> (post <|> nil)
+            newBlogPost = NewBlogPostLink <$ string "newBlogPost"
             register = RegisterLink <$ string "register"
             userDetails = do
               void (string "userDetails")
@@ -111,7 +115,7 @@ instance FromLocation SiteLinks where
                     divider
                     Just <$> userDetailsLinksParser
               UserDetailsLink <$> (detail <|> nil)
-        register <|> userDetails <|> blogPost
+        register <|> newBlogPost <|> userDetails <|> blogPost
       divider = void (char '/')
 
 instance LocalCookingSiteLinks SiteLinks where
