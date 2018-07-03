@@ -126,7 +126,7 @@ instance localCookingSiteLinksSiteLinks :: LocalCookingSiteLinks SiteLinks UserD
   getUserDetailsLink link = case link of
     UserDetailsLink mDetails -> Just mDetails
     _ -> Nothing
-  toDocumentTitle _ = ""
+  toDocumentTitle _ = "" -- FIXME how to get blog title from permalink?
   subsidiaryTitle _ = " Blog"
 
 
