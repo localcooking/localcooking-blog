@@ -136,19 +136,20 @@ instance fromLocationSiteLinks :: FromLocation SiteLinks where
     case runParser siteLinksPathParser (URIPath.printPath path) of
       Left e -> Left (show e)
       Right link -> pure link
-    where
-      siteLinksPathParser :: Parser SiteLinks
-      siteLinksPathParser = do
-        divider
-        let def = defaultSiteLinksPathParser userDetailsLinksParser
-            blogPost = RootLink <<< Just <$> permalinkParser
-            newBlogPost = NewBlogPostLink <$ string "newBlogPost"
-            emailConfirm = EmailConfirmLink <$ string "emailConfirm"
-        try emailConfirm
-          <|> try newBlogPost
-          <|> try blogPost
-          <|> def
-        where
-          divider = void (char '/')
-        -- TODO put nonstandard parsers here
+
+siteLinksPathParser :: Parser SiteLinks
+siteLinksPathParser = do
+  divider
+  let blogPost = RootLink <<< Just <$> permalinkParser
+      def = defaultSiteLinksPathParser userDetailsLinksParser (Just blogPost)
+      register = RegisterLink <$ string "register"
+      newBlogPost = NewBlogPostLink <$ string "newBlogPost"
+      emailConfirm = EmailConfirmLink <$ string "emailConfirm"
+  try emailConfirm
+    <|> try register
+    <|> try newBlogPost
+    <|> def
+  where
+    divider = void (char '/')
+  -- TODO put nonstandard parsers here
 
