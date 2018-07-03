@@ -125,7 +125,9 @@ instance LocalCookingSiteLinks SiteLinks where
     ( case x of
         RootLink mPost -> case mPost of
           Nothing -> ""
+          -- FIXME get blog post title?
           Just post -> printPermalink post <> " - "
+        NewBlogPostLink -> "New Blog Post - "
         RegisterLink -> "Register - "
         UserDetailsLink mDetails -> case mDetails of
           Nothing -> "User Details - "
