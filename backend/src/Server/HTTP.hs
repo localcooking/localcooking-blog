@@ -40,8 +40,8 @@ httpServer Env{envMkURI} handleAuthToken = do
   --   match (l_ "orders" </> o_) handleAuthToken
   --   match (l_ "diet" </> o_) handleAuthToken
   --   match (l_ "allergies" </> o_) handleAuthToken
-  -- matchGroup (l_ "meals" </> o_) $
-  --   matchHere handleAuthToken
+  matchGroup (l_ "newBlogPost" </> o_) $
+    matchHere handleAuthToken
   -- matchGroup (l_ "chefs" </> o_) $
   --   matchHere handleAuthToken
   matchAny $ \_ _ resp -> do
