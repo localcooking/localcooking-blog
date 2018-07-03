@@ -11,10 +11,12 @@ import Spec.Content.UserDetails.Buttons (userDetailsButtons)
 import Spec.Snackbar (messages)
 import LocalCooking.Types.ServerToClient (env)
 import LocalCooking.Main (defaultMain)
+import LocalCooking.Common.User.Role (UserRole (Editor))
 import LocalCooking.Spec.Misc.Branding (mainBrand)
 import LocalCooking.Dependencies.Blog (blogDependencies, newBlogQueues)
 import LocalCooking.Dependencies.AccessToken.Generic (AccessInitIn (..))
 import LocalCooking.Semantics.Blog (NewBlogPost)
+import LocalCooking.Semantics.Common (User (..))
 import LocalCooking.Global.Links.Internal (ImageLinks (Logo40Png))
 
 import Prelude
@@ -22,6 +24,7 @@ import Data.Maybe (Maybe (..))
 import Data.UUID (GENUUID)
 import Data.URI.Location (toLocation)
 import Data.Argonaut.JSONUnit (JSONUnit (..))
+import Data.Array as Array
 import Control.Monad.Aff (sequential)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Now (NOW)
@@ -107,7 +110,13 @@ main = do
           in  void $ setTimeout 1000 $
                 OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
         _ -> pure unit
-    , extraRedirect: \_ _ -> Nothing
+    , extraRedirect: \link mDetails -> case link of
+        NewBlogPostLink -> case mDetails of
+          Nothing -> Just (RootLink Nothing)
+          Just (UserDetails {user: User {roles}})
+            | Array.elem Editor roles -> Nothing
+            | otherwise -> Just (RootLink Nothing)
+        _ -> Nothing
     , leftDrawer:
       { buttons: drawersButtons
       }
