@@ -96,7 +96,7 @@ instance arbitrarySiteLinks :: Arbitrary SiteLinks where
 derive instance genericSiteLinks :: Generic SiteLinks
 
 instance showSiteLinks :: Show SiteLinks where
-  show = printLocation <<< toLocation
+  show = gShow -- printLocation <<< toLocation
 
 instance eqSiteLinks :: Eq SiteLinks where
   eq = gEq
