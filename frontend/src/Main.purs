@@ -116,7 +116,7 @@ main = do
                                 newBlogPosted
                                 (AccessInitIn {token: authToken, subj: newBlogPost})
                     in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
-          in  void $ setTimeout 50 $ OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
+          in  void $ setTimeout 300 $ OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
         -- FIXME when going to other links, dialogs should _close_ - does this imply
         -- some kind of signal representing the dialog's current state?
         -- BACK? What if nonexistent - i.e. initial pushed state _is_ the dialog?
