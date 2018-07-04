@@ -1,5 +1,7 @@
 module Links where
 
+import LocalCooking.Dependencies.Blog (GetBlogPostSparrowClientQueues)
+import LocalCooking.Semantics.Blog (GetBlogPost (..))
 import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks, class LocalCookingUserDetailsLinks, replaceState', defaultSiteLinksPathParser)
 
 import Prelude
@@ -17,7 +19,10 @@ import Data.NonEmpty ((:|))
 import Text.Parsing.StringParser (Parser, try, runParser)
 import Text.Parsing.StringParser.String (char, string)
 import Control.Alternative ((<|>))
+import Control.Monad.Aff (Aff)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Console (CONSOLE, warn)
 
 import DOM (DOM)
@@ -28,6 +33,7 @@ import DOM.HTML.Types (HISTORY)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (oneOf)
 
+import Queue.One.Aff as OneIO
 
 
 
@@ -126,11 +132,37 @@ instance localCookingSiteLinksSiteLinks :: LocalCookingSiteLinks SiteLinks UserD
   getUserDetailsLink link = case link of
     UserDetailsLink mDetails -> Just mDetails
     _ -> Nothing
-  toDocumentTitle _ = "" -- FIXME how to get blog title from permalink?
   subsidiaryTitle _ = " Blog"
   breadcrumb siteLink = case siteLink of
     NewBlogPostLink -> Just (RootLink Nothing :| [])
     _ -> Nothing
+
+
+initToDocumentTitle :: SiteLinks -> String
+initToDocumentTitle link = case link of
+  NewBlogPostLink -> "New Blog Post - "
+  RootLink mPost -> case mPost of
+    Nothing -> ""
+    Just permalink -> show permalink <> " - "
+  _ -> ""
+
+
+asyncToDocumentTitle :: forall eff
+                      . GetBlogPostSparrowClientQueues (ref :: REF, console :: CONSOLE | eff)
+                     -> SiteLinks
+                     -> Aff (ref :: REF, console :: CONSOLE | eff) String
+asyncToDocumentTitle getBlogPostQueues link = case link of
+  RootLink mPost -> case mPost of
+    Nothing -> pure ""
+    Just permalink -> do
+      mPost <- OneIO.callAsync getBlogPostQueues permalink
+      case mPost of
+        Nothing -> do
+          liftEff $ warn $ "Error - couldn't find blog post permalink - " <> show permalink
+          pure $ show permalink <> " - "
+        Just (GetBlogPost {headline}) -> pure $ headline <> " - "
+  _ -> pure (initToDocumentTitle link)
+
 
 
 -- Policy: don't fail on bad query params / fragment unless you have to
