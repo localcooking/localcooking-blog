@@ -1,17 +1,15 @@
 module Error where
 
 
--- data CustomerError
---   = CustomerSaveFailed
---   | CustomerSaveSuccess
+data RedirectError
+  = RedirectNewBlogPostNoEditor
 
 
 data SiteError
-  -- = SiteErrorCustomer CustomerError
+  = RedirectError RedirectError
 
 
 printSiteError :: SiteError -> String
-printSiteError e = "" -- case e of
-  -- SiteErrorCustomer cust -> case cust of
-  --   CustomerSaveFailed -> "Internal error - couldn't save customer details"
-  --   CustomerSaveSuccess -> "Customer details saved."
+printSiteError e = case e of
+  RedirectError r -> case r of
+    RedirectNewBlogPostNoEditor -> "Redirected - Can't create new blog post without credentials!"

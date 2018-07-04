@@ -31,6 +31,8 @@ import DOM.HTML.Window.Extra (WindowSize)
 
 import IxSignal.Internal (IxSignal)
 import IxSignal.Internal as IxSignal
+import Queue.Types (WRITE)
+import Queue.One as One
 import Queue.One.Aff as OneIO
 
 
@@ -64,22 +66,30 @@ spec :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { blogQueues :: BlogQueues (Effects eff)
         , newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+        , closeNewBlogPostQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
         }
      -> T.Spec (Effects eff) State Unit Action
 spec
-  params {blogQueues,newBlogPostQueues} = T.simpleSpec performAction render
+  params
+  { blogQueues
+  , newBlogPostQueues
+  , closeNewBlogPostQueue
+  } = T.simpleSpec performAction render
   where
     performAction action props state = case action of
       LocalCookingAction a -> performActionLocalCooking getLCState a props state
 
     render :: T.Render State Unit Action
     render dispatch props state children = case state.localCooking.currentPage of
-      RootLink _ ->
-        [ root params {blogQueues,openBlogPostQueues,newBlogPostQueues}
-        , blogPostDialog params {openBlogPostQueues}
-        , newBlogPostDialog params {newBlogPostQueues}
-        ]
+      RootLink _ -> blogPostsContent
+      NewBlogPostLink -> blogPostsContent
       _ -> []
+      where
+        blogPostsContent =
+          [ root params {blogQueues,openBlogPostQueues,newBlogPostQueues}
+          , blogPostDialog params {openBlogPostQueues}
+          , newBlogPostDialog params {newBlogPostQueues,closeNewBlogPostQueue}
+          ]
 
     openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
     openBlogPostQueues = unsafePerformEff OneIO.newIOQueues
@@ -95,6 +105,7 @@ content :: forall eff
          . LocalCookingParams SiteLinks UserDetails (Effects eff)
         -> { blogQueues :: BlogQueues (Effects eff)
            , newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+           , closeNewBlogPostQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
            }
         -> R.ReactElement
 content

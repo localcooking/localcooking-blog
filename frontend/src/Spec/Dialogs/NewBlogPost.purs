@@ -32,7 +32,7 @@ import React.DOM (text) as R
 import React.DOM.Props as RP
 import DOM (DOM)
 
-import Queue.Types (readOnly, writeOnly)
+import Queue.Types (readOnly, writeOnly, WRITE)
 import Queue.One.Aff as OneIO
 import Queue.One as One
 import IxQueue as IxQueue
@@ -53,16 +53,18 @@ newBlogPostDialog :: forall eff siteLinks userDetails userDetailsLinks
                   => ToLocation siteLinks
                   => LocalCookingParams siteLinks userDetails (Effects eff)
                   -> { newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+                     , closeNewBlogPostQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
                      } -- FIXME Just take GetBlogPost as input? Leave that up to caller
                   -> R.ReactElement
 newBlogPostDialog
   params@{toURI}
   { newBlogPostQueues
+  , closeNewBlogPostQueue
   } =
   genericDialog
   params
   { dialogQueue: newBlogPostQueues
-  , closeQueue: Nothing
+  , closeQueue: Just closeNewBlogPostQueue
   , buttons: \_ -> []
   , title: \_ -> "New Blog Post"
   , submitValue: Just "Submit"

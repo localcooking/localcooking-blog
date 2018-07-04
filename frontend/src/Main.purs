@@ -3,6 +3,7 @@ module Main where
 import Colors (palette)
 import User (UserDetails (..), PreUserDetails (..))
 import Links (SiteLinks (RootLink, NewBlogPostLink))
+import Error (SiteError (RedirectError), RedirectError (RedirectNewBlogPostNoEditor))
 import Spec.Topbar.Buttons (topbarButtons)
 import Spec.Drawers.Buttons (drawersButtons)
 import Spec.Content (content)
@@ -23,14 +24,13 @@ import Prelude
 import Data.Maybe (Maybe (..))
 import Data.UUID (GENUUID)
 import Data.URI.Location (toLocation)
-import Data.Argonaut.JSONUnit (JSONUnit (..))
 import Data.Array as Array
 import Control.Monad.Aff (sequential)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Now (NOW)
 import Control.Monad.Eff.Timer (TIMER, setTimeout)
 import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Ref (REF)
+import Control.Monad.Eff.Ref (REF, Ref, newRef, writeRef, readRef)
 import Control.Monad.Eff.Console (CONSOLE, log, warn)
 import Control.Execution.Immediate (SET_IMMEDIATE_SHIM)
 
@@ -48,7 +48,7 @@ import Network.HTTP.Affjax (AJAX)
 import Browser.WebStorage (WEB_STORAGE)
 import Crypto.Scrypt (SCRYPT)
 import IxSignal.Extra (onAvailableIx)
-import Queue.Types (readOnly, writeOnly)
+import Queue.Types (writeOnly, WRITE)
 import Queue.One as One
 import Queue.One.Aff as OneIO
 
@@ -82,6 +82,12 @@ main = do
 
   ( newBlogPostQueues :: OneIO.IOQueues Effects Unit (Maybe NewBlogPost)
     ) <- OneIO.newIOQueues
+  ( closeNewBlogPostQueue :: One.Queue (write :: WRITE) Effects Unit
+    ) <- writeOnly <$> One.newQueue
+
+  ( closedByNewNav :: Ref Boolean
+    ) <- newRef false
+
 
 
   defaultMain
@@ -89,33 +95,46 @@ main = do
     , palette
     , deps: do
         blogDependencies blogQueues
-    , extraProcessing: \link {siteLinks,authTokenSignal} -> case link of
+    , extraProcessing: \link {back,authTokenSignal} -> case link of
         NewBlogPostLink ->
           -- submit new blog post
-          let handleNewBlogPostDialog mNewBlogPost = case mNewBlogPost of
-                Nothing -> siteLinks (RootLink Nothing)
-                Just newBlogPost ->
-                  let withAuthToken authToken =
-                        let newBlogPosted mPostId = case mPostId of
-                              Nothing -> do
-                                warn "Error: couldn't post new blog post?"
-                                siteLinks (RootLink Nothing)
-                              Just newPostId -> do
-                                log $ "Blog posted! " <> show newPostId
-                                siteLinks (RootLink Nothing)
-                        in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
-                              newBlogPosted
-                              (AccessInitIn {token: authToken, subj: newBlogPost})
-                  in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
+          let handleNewBlogPostDialog mNewBlogPost = do
+                c <- readRef closedByNewNav
+                case mNewBlogPost of
+                  Nothing -> unless c back
+                  Just newBlogPost ->
+                    let withAuthToken authToken =
+                          let newBlogPosted mPostId = do
+                                case mPostId of
+                                  Nothing -> do
+                                    warn "Error: couldn't post new blog post?"
+                                  Just newPostId -> do
+                                    log $ "Blog posted! " <> show newPostId
+                                unless c back
+                          in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
+                                newBlogPosted
+                                (AccessInitIn {token: authToken, subj: newBlogPost})
+                    in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
           in  void $ setTimeout 1000 $
                 OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
-        _ -> pure unit
+        -- FIXME when going to other links, dialogs should _close_ - does this imply
+        -- some kind of signal representing the dialog's current state?
+        -- BACK? What if nonexistent - i.e. initial pushed state _is_ the dialog?
+        -- Natural breadcrumb - use the `last` as first assignment?
+        -- AXIOM: any navigatable dialog is part of a virtual breadcrumb, denoted
+        -- by last parsed chunk...?
+        _ -> do -- call close, but also set a ref that declares if a `back` should be issued...?
+                -- FIXME race condition?
+          writeRef closedByNewNav true
+          One.putQueue closeNewBlogPostQueue unit
+          
+    -- FIXME should also include / issue siteError
     , extraRedirect: \link mDetails -> case link of
         NewBlogPostLink -> case mDetails of
-          Nothing -> Just (RootLink Nothing)
+          Nothing -> Just { siteLink: RootLink Nothing, siteError: RedirectError RedirectNewBlogPostNoEditor }
           Just (UserDetails {user: User {roles}})
             | Array.elem Editor roles -> Nothing
-            | otherwise -> Just (RootLink Nothing)
+            | otherwise -> Just { siteLink: RootLink Nothing, siteError: RedirectError RedirectNewBlogPostNoEditor }
         _ -> Nothing
     , leftDrawer:
       { buttons: drawersButtons
@@ -124,7 +143,11 @@ main = do
       { imageSrc: toLocation Logo40Png
       , buttons: topbarButtons
       }
-    , content: \params -> content params {blogQueues,newBlogPostQueues}
+    , content: \params -> content params
+      { blogQueues
+      , newBlogPostQueues
+      , closeNewBlogPostQueue
+      }
     , userDetails:
       { buttons: userDetailsButtons
       , content: userDetails
@@ -135,7 +158,8 @@ main = do
           _ -> pure Nothing
       }
     , error:
-      { content: messages {siteErrorQueue: readOnly siteErrorQueue}
+      { content: messages
+      , queue: siteErrorQueue
       }
     , extendedNetwork:
       [ Button.withStyles
