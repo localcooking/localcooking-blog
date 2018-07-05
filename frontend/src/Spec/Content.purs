@@ -17,7 +17,7 @@ import Data.URI.Location (Location)
 import Data.Lens (Lens', Prism', lens, prism')
 import Data.String.Permalink (Permalink)
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff, unsafePerformEff)
 import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Exception (EXCEPTION)
@@ -85,10 +85,12 @@ spec
         then blogPostsContent
         else []
       where
-        isBlogPostContent link = case link of
-          RootLink _ -> true
-          NewBlogPostLink -> true
-          _ -> false
+        isBlogPostContent link =
+          let _ = unsafePerformEff $ log "calculating rendering..."
+          in  case link of
+                RootLink _ -> true
+                NewBlogPostLink -> true
+                _ -> false
         blogPostsContent =
           [ root params {blogQueues,openBlogPostQueues,newBlogPostQueues}
           , blogPostDialog params {openBlogPostQueues}

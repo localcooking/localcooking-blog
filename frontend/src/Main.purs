@@ -116,7 +116,7 @@ main = do
                 c <- readRef closedByNewNavigation
                 writeRef closedByNewNavigation false
                 unless c back
-          in  void $ setTimeout 300 $ OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
+          in  void $ setTimeout 1000 $ OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
         -- FIXME when going to other links, dialogs should _close_ - does this imply
         -- some kind of signal representing the dialog's current state?
         -- BACK? What if nonexistent - i.e. initial pushed state _is_ the dialog?
