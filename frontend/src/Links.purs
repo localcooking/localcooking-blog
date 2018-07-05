@@ -133,9 +133,6 @@ instance localCookingSiteLinksSiteLinks :: LocalCookingSiteLinks SiteLinks UserD
     UserDetailsLink mDetails -> Just mDetails
     _ -> Nothing
   subsidiaryTitle _ = " Blog"
-  breadcrumb siteLink = case siteLink of
-    NewBlogPostLink -> Just (RootLink Nothing :| [])
-    _ -> Nothing
 
 
 initToDocumentTitle :: SiteLinks -> String

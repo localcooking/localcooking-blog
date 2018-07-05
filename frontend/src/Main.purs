@@ -85,7 +85,7 @@ main = do
   ( closeNewBlogPostQueue :: One.Queue (write :: WRITE) Effects Unit
     ) <- writeOnly <$> One.newQueue
 
-  ( closedByNewNav :: Ref Boolean
+  ( closedByNewNavigation :: Ref Boolean
     ) <- newRef false
 
 
@@ -100,9 +100,11 @@ main = do
         NewBlogPostLink ->
           -- submit new blog post
           let handleNewBlogPostDialog mNewBlogPost = do
-                c <- readRef closedByNewNav
+                c <- readRef closedByNewNavigation
                 case mNewBlogPost of
-                  Nothing -> unless c back
+                  Nothing -> do
+                    unless c back
+                    writeRef closedByNewNavigation false
                   Just newBlogPost ->
                     let withAuthToken authToken =
                           let newBlogPosted mPostId = do
@@ -125,7 +127,7 @@ main = do
         -- by last parsed chunk...?
         _ -> do -- call close, but also set a ref that declares if a `back` should be issued...?
                 -- FIXME race condition?
-          writeRef closedByNewNav true
+          writeRef closedByNewNavigation true
           One.putQueue closeNewBlogPostQueue unit
     -- FIXME should also include / issue siteError
     , extraRedirect: \link mDetails -> case link of
