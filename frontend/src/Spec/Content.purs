@@ -80,11 +80,15 @@ spec
       LocalCookingAction a -> performActionLocalCooking getLCState a props state
 
     render :: T.Render State Unit Action
-    render dispatch props state children = case state.localCooking.currentPage of
-      RootLink _ -> blogPostsContent
-      NewBlogPostLink -> blogPostsContent
-      _ -> []
+    render dispatch props state children =
+      if isBlogPostContent state.localCooking.currentPage 
+        then blogPostsContent
+        else []
       where
+        isBlogPostContent link = case link of
+          RootLink _ -> true
+          NewBlogPostLink -> true
+          _ -> false
         blogPostsContent =
           [ root params {blogQueues,openBlogPostQueues,newBlogPostQueues}
           , blogPostDialog params {openBlogPostQueues}
