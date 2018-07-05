@@ -5,7 +5,7 @@ import Spec.Dialogs.BlogPost (blogPostDialog)
 import Spec.Dialogs.NewBlogPost (newBlogPostDialog)
 import Links (SiteLinks (..))
 import User (UserDetails)
-import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState)
+import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState, showLocalCookingState)
 import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Semantics.Blog (GetBlogPost, NewBlogPost)
 
@@ -86,7 +86,7 @@ spec
         else []
       where
         isBlogPostContent link =
-          let _ = unsafePerformEff $ log "calculating rendering..."
+          let _ = unsafePerformEff $ log $ "calculating rendering: " <> showLocalCookingState state.localCooking
           in  case link of
                 RootLink _ -> true
                 NewBlogPostLink -> true
