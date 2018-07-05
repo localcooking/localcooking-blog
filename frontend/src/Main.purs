@@ -114,6 +114,7 @@ main = do
                                 (AccessInitIn {token: authToken, subj: newBlogPost})
                     in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
                 c <- readRef closedByNewNavigation
+                log $ "Closed new blog post dialog with \"by new nav\": " <> show c
                 writeRef closedByNewNavigation false
                 unless c back
           in  void $ setTimeout 1000 $ OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
