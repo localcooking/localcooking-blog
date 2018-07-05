@@ -2,7 +2,7 @@ module Spec.Topbar.Buttons where
 
 import Links (SiteLinks)
 import User (UserDetails)
-import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, initLocalCookingState, performActionLocalCooking, whileMountedLocalCooking)
+import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingStateLight, LocalCookingActionLight, initLocalCookingStateLight, performActionLocalCookingLight, whileMountedLocalCookingLight)
 
 import Prelude
 import Data.URI.URI as URI
@@ -26,16 +26,16 @@ import MaterialUI.Button as Button
 
 
 type State =
-  { localCooking :: LocalCookingState SiteLinks UserDetails
+  { localCooking :: LocalCookingStateLight SiteLinks
   }
 
-initialState :: LocalCookingState SiteLinks UserDetails -> State
+initialState :: LocalCookingStateLight SiteLinks -> State
 initialState localCooking =
   { localCooking
   }
 
 data Action
-  = LocalCookingAction (LocalCookingAction SiteLinks UserDetails)
+  = LocalCookingAction (LocalCookingActionLight SiteLinks)
   | Clicked SiteLinks
 
 type Effects eff =
@@ -44,7 +44,7 @@ type Effects eff =
   , uuid :: GENUUID
   | eff)
 
-getLCState :: Lens' State (LocalCookingState SiteLinks UserDetails)
+getLCState :: Lens' State (LocalCookingStateLight SiteLinks)
 getLCState = lens (_.localCooking) (_ { localCooking = _ })
 
 
@@ -55,7 +55,7 @@ spec :: forall eff
 spec params@{siteLinks,toURI} prefix = T.simpleSpec performAction render
   where
     performAction action props state = case action of
-      LocalCookingAction a -> performActionLocalCooking getLCState a props state
+      LocalCookingAction a -> performActionLocalCookingLight getLCState a props state
       Clicked x -> liftEff (siteLinks x)
 
     render :: T.Render State Unit Action
@@ -93,9 +93,9 @@ topbarButtons params prefix =
   let {spec:reactSpec,dispatcher} =
         T.createReactSpec
           ( spec params prefix
-          ) (initialState (unsafePerformEff (initLocalCookingState params)))
+          ) (initialState (unsafePerformEff (initLocalCookingStateLight params)))
       reactSpec' =
-        whileMountedLocalCooking
+        whileMountedLocalCookingLight
           params
           "Spec.Content"
           LocalCookingAction

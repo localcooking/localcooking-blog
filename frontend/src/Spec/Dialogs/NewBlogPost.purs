@@ -1,6 +1,7 @@
 module Spec.Dialogs.NewBlogPost where
 
 import Links (SiteLinks (RootLink))
+import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams)
 import LocalCooking.Global.Links.Internal (PolicyLinks (..))
 import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks)
@@ -48,10 +49,8 @@ type Effects eff =
 
 
 
-newBlogPostDialog :: forall eff siteLinks userDetails userDetailsLinks
-                   . LocalCookingSiteLinks siteLinks userDetailsLinks
-                  => ToLocation siteLinks
-                  => LocalCookingParams siteLinks userDetails (Effects eff)
+newBlogPostDialog :: forall eff
+                   . LocalCookingParams SiteLinks UserDetails (Effects eff)
                   -> { newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
                      , closeNewBlogPostQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
                      } -- FIXME Just take GetBlogPost as input? Leave that up to caller

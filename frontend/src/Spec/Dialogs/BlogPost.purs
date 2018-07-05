@@ -1,6 +1,7 @@
 module Spec.Dialogs.BlogPost where
 
 import Links (SiteLinks (RootLink))
+import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams)
 import LocalCooking.Global.Links.Internal (PolicyLinks (..))
 import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks)
@@ -39,13 +40,11 @@ type Effects eff =
 
 
 
-blogPostDialog :: forall eff siteLinks userDetails userDetailsLinks
-                     . LocalCookingSiteLinks siteLinks userDetailsLinks
-                    => ToLocation siteLinks
-                    => LocalCookingParams siteLinks userDetails (Effects eff)
-                    -> { openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
-                       } -- FIXME Just take GetBlogPost as input? Leave that up to caller
-                    -> R.ReactElement
+blogPostDialog :: forall eff
+                . LocalCookingParams SiteLinks UserDetails (Effects eff)
+              -> { openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
+                  } -- FIXME Just take GetBlogPost as input? Leave that up to caller
+              -> R.ReactElement
 blogPostDialog
   params@{toURI}
   { openBlogPostQueues

@@ -3,7 +3,7 @@ module Spec.Drawers.Buttons where
 
 import Links (SiteLinks)
 import User (UserDetails)
-import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, initLocalCookingState, performActionLocalCooking, whileMountedLocalCooking)
+import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingStateLight, LocalCookingActionLight, initLocalCookingStateLight, performActionLocalCookingLight, whileMountedLocalCookingLight)
 import LocalCooking.Spec.Misc.Icons.ChefHat (chefHatViewBox, chefHat)
 
 import Prelude
@@ -29,16 +29,16 @@ import MaterialUI.Icons.RestaurantMenu (restaurantMenuIcon)
 
 
 type State =
-  { localCooking :: LocalCookingState SiteLinks UserDetails
+  { localCooking :: LocalCookingStateLight SiteLinks
   }
 
-initialState :: LocalCookingState SiteLinks UserDetails -> State
+initialState :: LocalCookingStateLight SiteLinks -> State
 initialState localCooking =
   { localCooking
   }
 
 data Action
-  = LocalCookingAction (LocalCookingAction SiteLinks UserDetails)
+  = LocalCookingAction (LocalCookingActionLight SiteLinks)
   | Clicked SiteLinks
 
 type Effects eff =
@@ -48,7 +48,7 @@ type Effects eff =
   | eff)
 
 
-getLCState :: Lens' State (LocalCookingState SiteLinks UserDetails)
+getLCState :: Lens' State (LocalCookingStateLight SiteLinks)
 getLCState = lens (_.localCooking) (_ { localCooking = _ })
 
 
@@ -59,7 +59,7 @@ spec :: forall eff
 spec params@{siteLinks} prefix = T.simpleSpec performAction render
   where
     performAction action props state = case action of
-      LocalCookingAction a -> performActionLocalCooking getLCState a props state
+      LocalCookingAction a -> performActionLocalCookingLight getLCState a props state
       Clicked x -> liftEff (siteLinks x)
 
     -- FIXME generate href links via params.toURI
@@ -98,9 +98,9 @@ drawersButtons params prefix =
   let {spec:reactSpec,dispatcher} =
         T.createReactSpec
           ( spec params prefix
-          ) (initialState (unsafePerformEff (initLocalCookingState params)))
+          ) (initialState (unsafePerformEff (initLocalCookingStateLight params)))
       reactSpec' =
-        whileMountedLocalCooking
+        whileMountedLocalCookingLight
           params
           "Spec.Content"
           LocalCookingAction

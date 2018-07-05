@@ -5,7 +5,7 @@ import LocalCooking.Semantics.Common (User)
 
 import Prelude
 import Data.Maybe (Maybe)
-import Data.Generic (class Generic, gShow)
+import Data.Generic (class Generic, gShow, gEq)
 
 
 
@@ -20,6 +20,9 @@ derive instance genericUserDetails :: Generic UserDetails
 
 instance showUserDetails :: Show UserDetails where
   show = gShow
+
+instance eqUserDetails :: Eq UserDetails where
+  eq = gEq
 
 instance userDetailsUserDetails :: UserDetails UserDetails where
   getUser (UserDetails {user}) = user

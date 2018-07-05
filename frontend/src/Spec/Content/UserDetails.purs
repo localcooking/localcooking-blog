@@ -3,7 +3,7 @@ module Spec.Content.UserDetails where
 import Links (SiteLinks (UserDetailsLink), UserDetailsLinks (..))
 import User (UserDetails)
 import Spec.Content.UserDetails.General (general)
-import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState)
+import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingStateLight, LocalCookingActionLight, performActionLocalCookingLight, whileMountedLocalCookingLight, initLocalCookingStateLight)
 
 import Prelude
 import Data.Lens (Lens', Prism', lens, prism')
@@ -26,16 +26,16 @@ import IxSignal.Internal as IxSignal
 
 
 type State =
-  { localCooking :: LocalCookingState SiteLinks UserDetails
+  { localCooking :: LocalCookingStateLight SiteLinks
   }
 
-initialState :: LocalCookingState SiteLinks UserDetails -> State
+initialState :: LocalCookingStateLight SiteLinks -> State
 initialState localCooking =
   { localCooking
   }
 
 data Action
-  = LocalCookingAction (LocalCookingAction SiteLinks UserDetails)
+  = LocalCookingActionLight (LocalCookingActionLight SiteLinks)
 
 type Effects eff =
   ( ref :: REF
@@ -43,7 +43,7 @@ type Effects eff =
   , exception :: EXCEPTION
   | eff)
 
-getLCState :: Lens' State (LocalCookingState SiteLinks UserDetails)
+getLCState :: Lens' State (LocalCookingStateLight SiteLinks)
 getLCState = lens (_.localCooking) (_ { localCooking = _ })
 
 
@@ -53,7 +53,7 @@ spec :: forall eff
 spec params@{siteLinks} = T.simpleSpec performAction render
   where
     performAction action props state = case action of
-      LocalCookingAction a -> performActionLocalCooking getLCState a props state
+      LocalCookingActionLight a -> performActionLocalCookingLight getLCState a props state
 
     render :: T.Render State Unit Action
     render dispatch props state children =
@@ -75,12 +75,12 @@ userDetails params =
   let {spec: reactSpec, dispatcher} =
         T.createReactSpec
           ( spec params
-          ) (initialState (unsafePerformEff (initLocalCookingState params)))
+          ) (initialState (unsafePerformEff (initLocalCookingStateLight params)))
       reactSpec' =
-        whileMountedLocalCooking
+        whileMountedLocalCookingLight
           params
           "Spec.Content"
-          LocalCookingAction
+          LocalCookingActionLight
           (\this -> unsafeCoerceEff <<< dispatcher this)
           reactSpec
   in  R.createElement (R.createClass reactSpec') unit []

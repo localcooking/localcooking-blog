@@ -5,7 +5,7 @@ import Spec.Dialogs.BlogPost (blogPostDialog)
 import Spec.Dialogs.NewBlogPost (newBlogPostDialog)
 import Links (SiteLinks (..))
 import User (UserDetails)
-import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState, showLocalCookingState)
+import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingStateLight, LocalCookingActionLight, performActionLocalCookingLight, whileMountedLocalCookingLight, initLocalCookingStateLight, showLocalCookingStateLight)
 import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Semantics.Blog (GetBlogPost, NewBlogPost)
 
@@ -38,16 +38,16 @@ import Queue.One.Aff as OneIO
 
 
 type State =
-  { localCooking :: LocalCookingState SiteLinks UserDetails
+  { localCooking :: LocalCookingStateLight SiteLinks
   }
 
-initialState :: LocalCookingState SiteLinks UserDetails -> State
+initialState :: LocalCookingStateLight SiteLinks -> State
 initialState localCooking =
   { localCooking
   }
 
 data Action
-  = LocalCookingAction (LocalCookingAction SiteLinks UserDetails)
+  = LocalCookingAction (LocalCookingActionLight SiteLinks)
 
 
 type Effects eff =
@@ -58,7 +58,7 @@ type Effects eff =
   , dom       :: DOM
   | eff)
 
-getLCState :: Lens' State (LocalCookingState SiteLinks UserDetails)
+getLCState :: Lens' State (LocalCookingStateLight SiteLinks)
 getLCState = lens (_.localCooking) (_ { localCooking = _ })
 
 
@@ -77,7 +77,7 @@ spec
   } = T.simpleSpec performAction render
   where
     performAction action props state = case action of
-      LocalCookingAction a -> performActionLocalCooking getLCState a props state
+      LocalCookingAction a -> performActionLocalCookingLight getLCState a props state
 
     render :: T.Render State Unit Action
     render dispatch props state children =
@@ -86,7 +86,7 @@ spec
         else []
       where
         isBlogPostContent link =
-          let _ = unsafePerformEff $ log $ "calculating rendering: " <> showLocalCookingState state.localCooking
+          let _ = unsafePerformEff $ log $ "calculating rendering: " <> showLocalCookingStateLight state.localCooking
           in  case link of
                 RootLink _ -> true
                 NewBlogPostLink -> true
@@ -119,9 +119,9 @@ content
   let {spec: reactSpec, dispatcher} =
         T.createReactSpec
           ( spec params args
-          ) (initialState (unsafePerformEff (initLocalCookingState params)))
+          ) (initialState (unsafePerformEff (initLocalCookingStateLight params)))
       reactSpec' =
-        whileMountedLocalCooking
+        whileMountedLocalCookingLight
           params
           "Spec.Content"
           LocalCookingAction
