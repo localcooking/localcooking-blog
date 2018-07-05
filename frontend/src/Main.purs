@@ -100,24 +100,22 @@ main = do
         NewBlogPostLink ->
           -- submit new blog post
           let handleNewBlogPostDialog mNewBlogPost = do
-                c <- readRef closedByNewNavigation
                 case mNewBlogPost of
-                  Nothing -> do
-                    unless c back
-                    writeRef closedByNewNavigation false
+                  Nothing -> pure unit
                   Just newBlogPost ->
                     let withAuthToken authToken =
-                          let newBlogPosted mPostId = do
-                                case mPostId of
-                                  Nothing -> do
-                                    warn "Error: couldn't post new blog post?"
-                                  Just newPostId -> do
-                                    log $ "Blog posted! " <> show newPostId
-                                unless c back
+                          let newBlogPosted mPostId = case mPostId of
+                                Nothing -> do
+                                  warn "Error: couldn't post new blog post?"
+                                Just newPostId -> do
+                                  log $ "Blog posted! " <> show newPostId
                           in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
                                 newBlogPosted
                                 (AccessInitIn {token: authToken, subj: newBlogPost})
                     in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
+                c <- readRef closedByNewNavigation
+                writeRef closedByNewNavigation false
+                unless c back
           in  void $ setTimeout 300 $ OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
         -- FIXME when going to other links, dialogs should _close_ - does this imply
         -- some kind of signal representing the dialog's current state?
@@ -128,6 +126,7 @@ main = do
         _ -> do -- call close, but also set a ref that declares if a `back` should be issued...?
                 -- FIXME race condition?
           writeRef closedByNewNavigation true
+          log "Closing dialog.."
           One.putQueue closeNewBlogPostQueue unit
     -- FIXME should also include / issue siteError
     , extraRedirect: \link mDetails -> case link of
