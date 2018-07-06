@@ -54,6 +54,7 @@ blogPostDialog
   { dialogQueue: openBlogPostQueues
   , closeQueue: Nothing
   , dialogSignal: Nothing
+  , extraOnClose: pure unit -- FIXME should back
   , buttons: \_ -> []
   , title: \(GetBlogPost {headline}) -> headline
   , submitValue: Nothing

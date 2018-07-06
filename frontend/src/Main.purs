@@ -42,7 +42,10 @@ import MaterialUI.SvgIcon (svgIcon)
 import MaterialUI.SvgIcon as SvgIcon
 import MaterialUI.Types (createStyles)
 import DOM (DOM)
+import DOM.HTML (window)
+import DOM.HTML.Window (history)
 import DOM.HTML.Types (HISTORY)
+import DOM.HTML.History (back)
 import WebSocket (WEBSOCKET)
 import Network.HTTP.Affjax (AJAX)
 import Browser.WebStorage (WEB_STORAGE)
@@ -89,9 +92,6 @@ main = do
   ( newBlogPostSignal :: IxSignal Effects (Maybe Unit)
     ) <- IxSignal.make Nothing
 
-  ( closedByNewNavigation :: Ref Boolean
-    ) <- newRef false
-
 
 
   defaultMain
@@ -117,10 +117,6 @@ main = do
                                 newBlogPosted
                                 (AccessInitIn {token: authToken, subj: newBlogPost})
                     in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
-                c <- readRef closedByNewNavigation
-                log $ "Closed new blog post dialog with \"by new nav\": " <> show c
-                writeRef closedByNewNavigation false
-                unless c back
           in  OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
         -- FIXME when going to other links, dialogs should _close_ - does this imply
         -- some kind of signal representing the dialog's current state?
@@ -130,9 +126,8 @@ main = do
         -- by last parsed chunk...?
         _ -> do -- call close, but also set a ref that declares if a `back` should be issued...?
                 -- FIXME race condition?
-          writeRef closedByNewNavigation true
           log "Closing dialog.."
-          One.putQueue closeNewBlogPostQueue unit
+          IxSignal.setDiff Nothing newBlogPostSignal
     -- FIXME should also include / issue siteError
     , extraRedirect: \link mDetails -> case link of
         NewBlogPostLink -> case mDetails of
@@ -156,6 +151,7 @@ main = do
         { dialogQueues: newBlogPostQueues
         , closeQueue: closeNewBlogPostQueue
         , dialogSignal: newBlogPostSignal
+        , back: back =<< history =<< window
         }
       }
     , userDetails:

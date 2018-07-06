@@ -69,6 +69,7 @@ spec :: forall eff
           { dialogQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
           , closeQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
           , dialogSignal :: IxSignal (Effects eff) (Maybe Unit)
+          , back :: Eff (Effects eff) Unit
           }
         }
      -> T.Spec (Effects eff) State Unit Action
@@ -116,6 +117,7 @@ content :: forall eff
              { dialogQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
              , closeQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
              , dialogSignal :: IxSignal (Effects eff) (Maybe Unit)
+             , back :: Eff (Effects eff) Unit
              }
            }
         -> R.ReactElement

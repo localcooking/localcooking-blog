@@ -18,6 +18,7 @@ import Data.UUID (GENUUID)
 import Data.Maybe (Maybe (..))
 import Data.String.Permalink (Permalink)
 import Data.String.Markdown (MarkdownText (..))
+import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
@@ -55,6 +56,7 @@ newBlogPostDialog :: forall eff
                   -> { dialogQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
                      , closeQueue   :: One.Queue (write :: WRITE) (Effects eff) Unit
                      , dialogSignal :: IxSignal (Effects eff) (Maybe Unit)
+                     , back         :: Eff (Effects eff) Unit
                      } -- FIXME Just take GetBlogPost as input? Leave that up to caller
                   -> R.ReactElement
 newBlogPostDialog
@@ -62,12 +64,14 @@ newBlogPostDialog
   { dialogQueues
   , closeQueue
   , dialogSignal
+  , back
   } =
   genericDialog
   params
   { dialogQueue: dialogQueues
   , closeQueue: Just closeQueue
   , dialogSignal: Just dialogSignal
+  , extraOnClose: back
   , buttons: \_ -> []
   , title: \_ -> "New Blog Post"
   , submitValue: Just "Submit"
