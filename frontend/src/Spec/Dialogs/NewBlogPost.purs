@@ -37,6 +37,7 @@ import Queue.Types (readOnly, writeOnly, WRITE)
 import Queue.One.Aff as OneIO
 import Queue.One as One
 import IxQueue as IxQueue
+import IxSignal.Internal (IxSignal)
 import IxSignal.Internal as IxSignal
 
 
@@ -51,19 +52,22 @@ type Effects eff =
 
 newBlogPostDialog :: forall eff
                    . LocalCookingParams SiteLinks UserDetails (Effects eff)
-                  -> { newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
-                     , closeNewBlogPostQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
+                  -> { dialogQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+                     , closeQueue   :: One.Queue (write :: WRITE) (Effects eff) Unit
+                     , dialogSignal :: IxSignal (Effects eff) (Maybe Unit)
                      } -- FIXME Just take GetBlogPost as input? Leave that up to caller
                   -> R.ReactElement
 newBlogPostDialog
   params@{toURI}
-  { newBlogPostQueues
-  , closeNewBlogPostQueue
+  { dialogQueues
+  , closeQueue
+  , dialogSignal
   } =
   genericDialog
   params
-  { dialogQueue: newBlogPostQueues
-  , closeQueue: Just closeNewBlogPostQueue
+  { dialogQueue: dialogQueues
+  , closeQueue: Just closeQueue
+  , dialogSignal: Just dialogSignal
   , buttons: \_ -> []
   , title: \_ -> "New Blog Post"
   , submitValue: Just "Submit"

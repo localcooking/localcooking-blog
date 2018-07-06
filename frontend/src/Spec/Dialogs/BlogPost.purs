@@ -53,6 +53,7 @@ blogPostDialog
   params
   { dialogQueue: openBlogPostQueues
   , closeQueue: Nothing
+  , dialogSignal: Nothing
   , buttons: \_ -> []
   , title: \(GetBlogPost {headline}) -> headline
   , submitValue: Nothing

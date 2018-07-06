@@ -65,15 +65,17 @@ getLCState = lens (_.localCooking) (_ { localCooking = _ })
 spec :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { blogQueues :: BlogQueues (Effects eff)
-        , newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
-        , closeNewBlogPostQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
+        , newBlogPost ::
+          { dialogQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+          , closeQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
+          , dialogSignal :: IxSignal (Effects eff) (Maybe Unit)
+          }
         }
      -> T.Spec (Effects eff) State Unit Action
 spec
   params
   { blogQueues
-  , newBlogPostQueues
-  , closeNewBlogPostQueue
+  , newBlogPost
   } = T.simpleSpec performAction render
   where
     performAction action props state = case action of
@@ -92,9 +94,9 @@ spec
                 NewBlogPostLink -> true
                 _ -> false
         blogPostsContent =
-          [ root params {blogQueues,openBlogPostQueues,newBlogPostQueues}
+          [ root params {blogQueues,openBlogPostQueues,newBlogPostQueues: newBlogPost.dialogQueues}
           , blogPostDialog params {openBlogPostQueues}
-          , newBlogPostDialog params {newBlogPostQueues,closeNewBlogPostQueue}
+          , newBlogPostDialog params newBlogPost
           ]
 
     openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
@@ -110,8 +112,11 @@ spec
 content :: forall eff
          . LocalCookingParams SiteLinks UserDetails (Effects eff)
         -> { blogQueues :: BlogQueues (Effects eff)
-           , newBlogPostQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
-           , closeNewBlogPostQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
+           , newBlogPost ::
+             { dialogQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+             , closeQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
+             , dialogSignal :: IxSignal (Effects eff) (Maybe Unit)
+             }
            }
         -> R.ReactElement
 content

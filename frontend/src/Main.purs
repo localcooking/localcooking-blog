@@ -48,6 +48,8 @@ import Network.HTTP.Affjax (AJAX)
 import Browser.WebStorage (WEB_STORAGE)
 import Crypto.Scrypt (SCRYPT)
 import IxSignal.Extra (onAvailableIx)
+import IxSignal.Internal (IxSignal)
+import IxSignal.Internal as IxSignal
 import Queue.Types (writeOnly, WRITE)
 import Queue.One as One
 import Queue.One.Aff as OneIO
@@ -84,6 +86,8 @@ main = do
     ) <- OneIO.newIOQueues
   ( closeNewBlogPostQueue :: One.Queue (write :: WRITE) Effects Unit
     ) <- writeOnly <$> One.newQueue
+  ( newBlogPostSignal :: IxSignal Effects (Maybe Unit)
+    ) <- IxSignal.make Nothing
 
   ( closedByNewNavigation :: Ref Boolean
     ) <- newRef false
@@ -117,7 +121,7 @@ main = do
                 log $ "Closed new blog post dialog with \"by new nav\": " <> show c
                 writeRef closedByNewNavigation false
                 unless c back
-          in  void $ setTimeout 1000 $ OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
+          in  OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog unit
         -- FIXME when going to other links, dialogs should _close_ - does this imply
         -- some kind of signal representing the dialog's current state?
         -- BACK? What if nonexistent - i.e. initial pushed state _is_ the dialog?
@@ -148,8 +152,11 @@ main = do
       }
     , content: \params -> content params
       { blogQueues
-      , newBlogPostQueues
-      , closeNewBlogPostQueue
+      , newBlogPost:
+        { dialogQueues: newBlogPostQueues
+        , closeQueue: closeNewBlogPostQueue
+        , dialogSignal: newBlogPostSignal
+        }
       }
     , userDetails:
       { buttons: userDetailsButtons
