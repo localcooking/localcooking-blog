@@ -13,7 +13,7 @@ import Spec.Snackbar (messages)
 import LocalCooking.Types.ServerToClient (env)
 import LocalCooking.Main (defaultMain)
 import LocalCooking.Common.User.Role (UserRole (Editor))
-import LocalCooking.Spec.Misc.Branding (mainBrand)
+import LocalCooking.Spec.Misc.Network (networkButton)
 import LocalCooking.Dependencies.Blog (blogDependencies, newBlogQueues)
 import LocalCooking.Dependencies.AccessToken.Generic (AccessInitIn (..))
 import LocalCooking.Semantics.Blog (NewBlogPost)
@@ -108,11 +108,13 @@ main = do
                   Nothing -> pure unit
                   Just newBlogPost ->
                     let withAuthToken authToken =
-                          let newBlogPosted mPostId = case mPostId of
-                                Nothing -> do
-                                  warn "Error: couldn't post new blog post?"
-                                Just newPostId -> do
-                                  log $ "Blog posted! " <> show newPostId
+                          let newBlogPosted mPostId = do
+                                case mPostId of
+                                  Nothing -> do
+                                    warn "Error: couldn't post new blog post?"
+                                  Just newPostId -> do
+                                    log $ "Blog posted! " <> show newPostId
+                                One.putQueue closeNewBlogPostQueue unit
                           in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
                                 newBlogPosted
                                 (AccessInitIn {token: authToken, subj: newBlogPost})
@@ -169,139 +171,39 @@ main = do
       , queue: siteErrorQueue
       }
     , extendedNetwork:
-      [ Button.withStyles
-        (\_ ->
-          { root: createStyles
-            { background: "#c62828"
-            , color: "#fff"
-            , textTransform: "none"
-            , "&:hover":
-              { background: "#ff5f52"
-              }
-            }
-          }
-        )
-        \{classes} ->
-          button
-          { href: "https://localcooking.com/"
-          , classes: Button.createClasses classes
-          , variant: Button.raised
-          }
-          [ svgIcon
-            { viewBox: "0 0 279 279"
-            , color: SvgIcon.inherit
-            }
-            [ mainBrand
-            ]
-          , R.text " Customers"
-          ]
+      [ networkButton
+        { light: "#c62828"
+        , dark: "#ff5f52"
+        , href: "https://localcooking.com/"
+        , label: "Customers"
+        }
       , R.text " "
-      , Button.withStyles
-        (\_ ->
-          { root: createStyles
-            { background: "#1565c0"
-            , color: "#fff"
-            , textTransform: "none"
-            , "&:hover":
-              { background: "#5e92f3"
-              }
-            }
-          }
-        )
-        \{classes} ->
-          button
-          { href: "https://chef.localcooking.com/"
-          , classes: Button.createClasses classes
-          , variant: Button.raised
-          }
-          [ svgIcon
-            { viewBox: "0 0 279 279"
-            , color: SvgIcon.inherit
-            }
-            [ mainBrand
-            ]
-          , R.text " Chefs"
-          ]
+      , networkButton
+        { light: "#1565c0"
+        , dark: "#5e92f3"
+        , href: "https://chef.localcooking.com/"
+        , label: "Chefs"
+        }
       , R.text " "
-      , Button.withStyles
-        (\_ ->
-          { root: createStyles
-            { background: "#1b5e20"
-            , color: "#fff"
-            , textTransform: "none"
-            , "&:hover":
-              { background: "#4c8c4a"
-              }
-            }
-          }
-        )
-        \{classes} ->
-          button
-          { href: "https://farm.localcooking.com/"
-          , classes: Button.createClasses classes
-          , variant: Button.raised
-          }
-          [ svgIcon
-            { viewBox: "0 0 279 279"
-            , color: SvgIcon.inherit
-            }
-            [ mainBrand
-            ]
-          , R.text " Farms"
-          ]
+      , networkButton
+        { light: "#1b5e20"
+        , dark: "#4c8c4a"
+        , href: "https://farm.localcooking.com/"
+        , label: "Farms"
+        }
       , R.text " "
-      , Button.withStyles
-        (\_ ->
-          { root: createStyles
-            { background: "#7b1fa2"
-            , color: "#fff"
-            , textTransform: "none"
-            , "&:hover":
-              { background: "#ae52d4"
-              }
-            }
-          }
-        )
-        \{classes} ->
-          button
-          { href: "https://restaurant.localcooking.com/"
-          , classes: Button.createClasses classes
-          , variant: Button.raised
-          }
-          [ svgIcon
-            { viewBox: "0 0 279 279"
-            , color: SvgIcon.inherit
-            }
-            [ mainBrand
-            ]
-          , R.text " Restaurants"
-          ]
+      , networkButton
+        { light: "#7b1fa2"
+        , dark: "#ae52d4"
+        , href: "https://restaurant.localcooking.com/"
+        , label: "Restaurants"
+        }
       , R.text " "
-      , Button.withStyles
-        (\_ ->
-          { root: createStyles
-            { background: "#546e7a"
-            , color: "#fff"
-            , textTransform: "none"
-            , "&:hover":
-              { background: "#819ca9"
-              }
-            }
-          }
-        )
-        \{classes} ->
-          button
-          { href: "https://admin.localcooking.com/"
-          , classes: Button.createClasses classes
-          , variant: Button.raised
-          }
-          [ svgIcon
-            { viewBox: "0 0 279 279"
-            , color: SvgIcon.inherit
-            }
-            [ mainBrand
-            ]
-          , R.text " Admins"
-          ]
+      , networkButton
+        { light: "#546e7a"
+        , dark: "#819ca9"
+        , href: "https://admin.localcooking.com/"
+        , label: "Admins"
+        }
       ]
     }

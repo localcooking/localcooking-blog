@@ -174,12 +174,8 @@ siteLinksPathParser = do
   divider
   let blogPost = RootLink <<< Just <$> permalinkParser
       def = defaultSiteLinksPathParser userDetailsLinksParser (Just blogPost)
-      register = RegisterLink <$ string "register"
       newBlogPost = NewBlogPostLink <$ string "newBlogPost"
-      emailConfirm = EmailConfirmLink <$ string "emailConfirm"
-  try emailConfirm
-    <|> try register
-    <|> try newBlogPost
+  try newBlogPost
     <|> def
   where
     divider = void (char '/')
