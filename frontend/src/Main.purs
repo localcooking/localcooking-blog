@@ -127,8 +127,8 @@ main = do
         _ -> do -- call close, but also set a ref that declares if a `back` should be issued...?
                 -- FIXME race condition?
           log "Closing dialog.."
-          One.putQueue closeNewBlogPostQueue unit
-          -- IxSignal.setDiff Nothing newBlogPostSignal
+          -- One.putQueue closeNewBlogPostQueue unit
+          IxSignal.setDiff Nothing newBlogPostSignal
     -- FIXME should also include / issue siteError
     , extraRedirect: \link mDetails -> case link of
         NewBlogPostLink -> case mDetails of
