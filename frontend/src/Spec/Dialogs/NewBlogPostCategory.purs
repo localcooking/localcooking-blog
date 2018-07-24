@@ -80,7 +80,7 @@ newBlogPostCategoryDialog
   , content:
     { component: \_ ->
       [ BlogPostCategory.blogPostCategory
-        { label: R.text "Blog Post Category"
+        { label: R.text "Category Name"
         , fullWidth: true
         , id: "blogPostCategory"
         , updatedQueue: blogPostCategoryUpdatedQueue
@@ -96,9 +96,9 @@ newBlogPostCategoryDialog
         , setQueue: permalinkSetQueue
         }
       , BlogPostPriority.blogPostPriority
-        { label: R.text "Blog Post Priority"
+        { label: R.text "Priority"
         , fullWidth: true
-        , id: "blogPostPriority"
+        , id: "blogPostCategoryPriority"
         , updatedQueue: blogPostPriorityUpdatedQueue
         , blogPostPrioritySignal: blogPostPrioritySignal
         , setQueue: blogPostPrioritySetQueue

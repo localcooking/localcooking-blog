@@ -5,11 +5,15 @@ import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams)
 import LocalCooking.Global.Links.Internal (PolicyLinks (..))
 import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks)
-import LocalCooking.Spec.Dialogs.Generic (genericDialog)
 import LocalCooking.Semantics.Blog (NewBlogPost (..))
+import LocalCooking.Database.Schema (StoredBlogPostCategoryId)
+import LocalCooking.Common.Blog (BlogPostPriority (..))
+import LocalCooking.Spec.Dialogs.Generic (genericDialog)
 import LocalCooking.Spec.Common.Form.Text as Text
 import LocalCooking.Spec.Common.Form.Permalink as Permalink
 import LocalCooking.Spec.Common.Form.Markdown as Markdown
+import LocalCooking.Spec.Common.Form.BlogPostPriority as BlogPostPriority
+import LocalCooking.Spec.Common.Form.Checkbox as Checkbox
 
 import Prelude
 import Data.URI.URI (print) as URI
@@ -18,6 +22,8 @@ import Data.UUID (GENUUID)
 import Data.Maybe (Maybe (..))
 import Data.String.Permalink (Permalink)
 import Data.String.Markdown (MarkdownText (..))
+import Data.Array as Array
+import Data.Generic (class Generic, gEq, gCompare)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Exception (EXCEPTION)
@@ -50,12 +56,26 @@ type Effects eff =
   | eff)
 
 
+data BlogPostPrimary = BlogPostPrimary
+
+derive instance genericBlogPostPrimary :: Generic BlogPostPrimary
+
+instance eqBlogPostPrimary :: Eq BlogPostPrimary where
+  eq = gEq
+
+instance ordBlogPostPrimary :: Ord BlogPostPrimary where
+  compare = gCompare
+
+instance showBlogPostPrimary :: Show BlogPostPrimary where
+  show BlogPostPrimary = "Primary"
+
+
 
 newBlogPostDialog :: forall eff
                    . LocalCookingParams SiteLinks UserDetails (Effects eff)
-                  -> { dialogQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+                  -> { dialogQueues :: OneIO.IOQueues (Effects eff) StoredBlogPostCategoryId (Maybe NewBlogPost)
                      , closeQueue   :: One.Queue (write :: WRITE) (Effects eff) Unit
-                     , dialogSignal :: IxSignal (Effects eff) (Maybe Unit)
+                     , dialogSignal :: IxSignal (Effects eff) (Maybe StoredBlogPostCategoryId)
                      , back         :: Eff (Effects eff) Unit
                      } -- FIXME Just take GetBlogPost as input? Leave that up to caller
                   -> R.ReactElement
@@ -102,9 +122,22 @@ newBlogPostDialog
         , markdownSignal: contentSignal
         , setQueue: contentSetQueue
         }
+      , BlogPostPriority.blogPostPriority
+        { label: R.text "Priority"
+        , fullWidth: true
+        , id: "blogPostPriority"
+        , updatedQueue: blogPostPriorityUpdatedQueue
+        , blogPostPrioritySignal: blogPostPrioritySignal
+        , setQueue: blogPostPrioritySetQueue
+        }
+      , Checkbox.checkboxes
+        { entriesSignal: blogPostPrimarySignal
+        , label: "Primary"
+        , entries: [BlogPostPrimary]
+        }
       -- TODO edit button for those who deserve it :|
       ]
-    , obtain: \_ -> do
+    , obtain: \category -> do
       mPermalink <- liftEff $ IxSignal.get permalinkSignal
       case mPermalink of
         Permalink.PermalinkPartial _ -> pure Nothing
@@ -112,11 +145,14 @@ newBlogPostDialog
         Permalink.PermalinkGood permalink -> do
           headline <- liftEff $ IxSignal.get headlineSignal
           content <- liftEff $ IxSignal.get contentSignal
-          pure $ Just $ NewBlogPost {headline,permalink,content}
+          priority <- liftEff $ IxSignal.get blogPostPrioritySignal
+          primary <- liftEff $ (not <<< Array.null) <$> IxSignal.get blogPostPrimarySignal
+          pure $ Just $ NewBlogPost {headline,permalink,content,priority,primary,category}
     , reset: do
         One.putQueue headlineSetQueue ""
         One.putQueue permalinkSetQueue (Permalink.PermalinkPartial "")
         One.putQueue contentSetQueue (MarkdownText "")
+        One.putQueue blogPostPrioritySetQueue (BlogPostPriority 0)
     }
   }
   where
@@ -129,3 +165,7 @@ newBlogPostDialog
     contentUpdatedQueue = unsafePerformEff $ readOnly <$> IxQueue.newIxQueue
     contentSignal = unsafePerformEff $ IxSignal.make $ MarkdownText ""
     contentSetQueue = unsafePerformEff $ writeOnly <$> One.newQueue
+    blogPostPriorityUpdatedQueue = unsafePerformEff $ readOnly <$> IxQueue.newIxQueue
+    blogPostPrioritySignal = unsafePerformEff $ IxSignal.make $ BlogPostPriority 0
+    blogPostPrioritySetQueue = unsafePerformEff $ writeOnly <$> One.newQueue
+    blogPostPrimarySignal = unsafePerformEff $ IxSignal.make []
