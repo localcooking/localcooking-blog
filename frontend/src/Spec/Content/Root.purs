@@ -19,6 +19,7 @@ import Data.Lens (Lens', Prism', lens, prism')
 import Data.Array as Array
 import Data.Argonaut.JSONUnit (JSONUnit (..))
 import Data.String.Permalink (Permalink)
+import Data.JSDate (fromDateTime, toDateString)
 import Control.Monad.Base (liftBase)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Ref (REF)
@@ -168,7 +169,7 @@ spec params
                       , onClick: mkEffFn1 \_ -> dispatch (OpenBlogPost permalink)
                       }
                       [ tableCell {} $ R.text $ show author
-                      , tableCell {} $ R.text $ show timestamp
+                      , tableCell {} $ R.text $ show $ toDateString $ fromDateTime timestamp
                       , tableCell {} $ R.text headline
                       ]
               in  renderPost <$> xs

@@ -1,13 +1,18 @@
 module Links where
 
-import LocalCooking.Dependencies.Blog (GetBlogPostSparrowClientQueues)
-import LocalCooking.Semantics.Blog (GetBlogPost (..))
+import LocalCooking.Dependencies.Blog
+  ( GetBlogPostSparrowClientQueues, GetBlogPostCategorySparrowClientQueues)
+import LocalCooking.Common.Blog
+  (BlogPostCategory, BlogPostVariant, blogPostVariantParser, printBlogPostVariant)
+import LocalCooking.Semantics.Common (WithId (..))
+import LocalCooking.Semantics.Blog (GetBlogPost (..), GetBlogPostCategory (..))
 import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks, class LocalCookingUserDetailsLinks, replaceState', defaultSiteLinksPathParser)
 
 import Prelude
 import Data.String.Permalink (Permalink, permalinkParser)
 import Data.Maybe (Maybe (..))
 import Data.Either (Either (..))
+import Data.Tuple (Tuple (..))
 import Data.URI (Query (..))
 import Data.URI.URI as URI
 import Data.URI.Path as URIPath
@@ -18,6 +23,7 @@ import Data.Generic (class Generic, gEq, gShow)
 import Data.NonEmpty ((:|))
 import Text.Parsing.StringParser (Parser, try, runParser)
 import Text.Parsing.StringParser.String (char, string)
+import Control.Parallel (parallel, sequential)
 import Control.Alternative ((<|>))
 import Control.Monad.Aff (Aff)
 import Control.Monad.Eff (Eff)
@@ -84,7 +90,9 @@ userDetailsLinksParser = do
 
 
 data SiteLinks
-  = RootLink (Maybe Permalink)
+  = RootLink
+  | BlogPostCategoryLink BlogPostVariant Permalink
+  | BlogPostLink BlogPostVariant Permalink Permalink
   | NewBlogPostLink
   | RegisterLink
   | UserDetailsLink (Maybe UserDetailsLinks)
@@ -92,8 +100,10 @@ data SiteLinks
 
 instance arbitrarySiteLinks :: Arbitrary SiteLinks where
   arbitrary = oneOf $
-        (RootLink <$> arbitrary)
-    :|  [ pure RegisterLink
+        (pure RootLink)
+    :|  [ BlogPostCategoryLink <$> arbitrary <*> arbitrary
+        , BlogPostLink <$> arbitrary <*> arbitrary <*> arbitrary
+        , pure RegisterLink
         , pure NewBlogPostLink
         , UserDetailsLink <$> arbitrary
         , pure EmailConfirmLink
@@ -110,12 +120,20 @@ instance eqSiteLinks :: Eq SiteLinks where
 
 instance toLocationSiteLinks :: ToLocation SiteLinks where
   toLocation x = case x of
-    RootLink mPost -> case mPost of
-      Nothing -> Location (Left rootDir) Nothing Nothing
-      Just post -> Location (Right $ rootDir </> file (show post)) Nothing Nothing
-    NewBlogPostLink -> Location (Right $ rootDir </> file "newBlogPost") Nothing Nothing
-    RegisterLink -> Location (Right $ rootDir </> file "register") Nothing Nothing
-    EmailConfirmLink -> Location (Right $ rootDir </> file "emailConfirm") Nothing Nothing
+    RootLink -> Location (Left rootDir) Nothing Nothing
+    BlogPostCategoryLink variant cat ->
+      Location (Right $ rootDir </> dir (printBlogPostVariant variant)
+                                </> file (show cat)) Nothing Nothing
+    BlogPostLink variant cat post ->
+      Location (Right $ rootDir </> dir (printBlogPostVariant variant)
+                                </> dir (show cat)
+                                </> file (show post)) Nothing Nothing
+    NewBlogPostLink ->
+      Location (Right $ rootDir </> file "newBlogPost") Nothing Nothing
+    RegisterLink ->
+      Location (Right $ rootDir </> file "register") Nothing Nothing
+    EmailConfirmLink ->
+      Location (Right $ rootDir </> file "emailConfirm") Nothing Nothing
     UserDetailsLink mUserDetails ->
       Location
         ( Right $ case mUserDetails of
@@ -125,7 +143,7 @@ instance toLocationSiteLinks :: ToLocation SiteLinks where
 
 
 instance localCookingSiteLinksSiteLinks :: LocalCookingSiteLinks SiteLinks UserDetailsLinks where
-  rootLink = RootLink Nothing
+  rootLink = RootLink
   registerLink = RegisterLink
   userDetailsLink = UserDetailsLink
   emailConfirmLink = EmailConfirmLink
@@ -138,26 +156,43 @@ instance localCookingSiteLinksSiteLinks :: LocalCookingSiteLinks SiteLinks UserD
 initToDocumentTitle :: SiteLinks -> String
 initToDocumentTitle link = case link of
   NewBlogPostLink -> "New Blog Post - "
-  RootLink mPost -> case mPost of
-    Nothing -> ""
-    Just permalink -> show permalink <> " - "
+  RootLink -> ""
+  BlogPostCategoryLink variant cat ->
+    show cat <> " - " <> printBlogPostVariant variant <> " - "
+  BlogPostLink variant cat post ->
+    show post <> "- " <> show cat <> " - " <> printBlogPostVariant variant <> " - "
   _ -> ""
 
 
 asyncToDocumentTitle :: forall eff
-                      . GetBlogPostSparrowClientQueues (ref :: REF, console :: CONSOLE | eff)
+                      . { getBlogPostCategoriesQueues :: GetBlogPostCategorySparrowClientQueues (ref :: REF, console :: CONSOLE | eff)
+                        , getBlogPostQueues :: GetBlogPostSparrowClientQueues (ref :: REF, console :: CONSOLE | eff)
+                        }
                      -> SiteLinks
                      -> Aff (ref :: REF, console :: CONSOLE | eff) String
-asyncToDocumentTitle getBlogPostQueues link = case link of
-  RootLink mPost -> case mPost of
-    Nothing -> pure ""
-    Just permalink -> do
-      mPost <- OneIO.callAsync getBlogPostQueues permalink
-      case mPost of
-        Nothing -> do
-          liftEff $ warn $ "Error - couldn't find blog post permalink - " <> show permalink
-          pure $ show permalink <> " - "
-        Just (GetBlogPost {headline}) -> pure $ headline <> " - "
+asyncToDocumentTitle {getBlogPostCategoriesQueues,getBlogPostQueues} link = case link of
+  BlogPostCategoryLink variant cat -> do
+    mCat <- OneIO.callAsync getBlogPostCategoriesQueues (WithId {id:variant,content:cat})
+    case mCat of
+      Nothing -> do
+        liftEff $ warn $ "Error - couldn't find blog post category permalink - " <> show cat
+        pure $ show cat <> " - " <> printBlogPostVariant variant <> " - "
+      Just (GetBlogPostCategory {name}) -> pure $ show name <> " - " <> show variant <> " - "
+  BlogPostLink variant cat post -> do
+    Tuple mCat mPost <- sequential $
+      Tuple <$> parallel (OneIO.callAsync getBlogPostCategoriesQueues (WithId {id:variant,content:cat}))
+            <*> parallel (OneIO.callAsync getBlogPostQueues (WithId {id:variant,content:WithId {id:cat,content:post}}))
+    case mCat of
+      Nothing -> do
+        liftEff $ warn $ "Error - couldn't find blog post category permalink - " <> show cat
+        pure $ show post <> " - " <> show cat <> " - " <> printBlogPostVariant variant <> " - "
+      Just (GetBlogPostCategory {name}) ->
+        case mPost of
+          Nothing -> do
+            liftEff $ warn $ "Error - couldn't find blog post permalink - " <> show post
+            pure $ show post <> " - " <> show cat <> " - " <> printBlogPostVariant variant <> " - "
+          Just (GetBlogPost {headline}) ->
+            pure $ headline <> " - " <> show name <> " - " <> show variant <> " - "
   _ -> pure (initToDocumentTitle link)
 
 
@@ -169,13 +204,27 @@ instance fromLocationSiteLinks :: FromLocation SiteLinks where
       Left e -> Left (show e)
       Right link -> pure link
 
+-- TODO verify correctness
 siteLinksPathParser :: Parser SiteLinks
 siteLinksPathParser = do
   divider
-  let blogPost = RootLink <<< Just <$> permalinkParser
-      def = defaultSiteLinksPathParser userDetailsLinksParser (Just blogPost)
+  let blogPostCategory = do
+        variant <- blogPostVariantParser
+        void divider
+        cat <- permalinkParser
+        pure (BlogPostCategoryLink variant cat)
+      blogPost = do
+        variant <- blogPostVariantParser
+        void divider
+        cat <- permalinkParser
+        void divider
+        post <- permalinkParser
+        pure (BlogPostLink variant cat post)
+      def = defaultSiteLinksPathParser userDetailsLinksParser Nothing
       newBlogPost = NewBlogPostLink <$ string "newBlogPost"
   try newBlogPost
+    <|> try blogPostCategory
+    <|> try blogPost
     <|> def
   where
     divider = void (char '/')

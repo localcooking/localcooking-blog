@@ -32,7 +32,9 @@ spec = T.simpleSpec performAction render
         { variant: Typography.display1
         , align: Typography.center
         } [R.text "General"]
-      , newPerson
+      , typography
+        { variant: Typography.body1
+        } [R.text "No profile settings"]
       ]
 
 

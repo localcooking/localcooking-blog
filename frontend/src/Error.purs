@@ -8,7 +8,6 @@ data RedirectError
 data SiteError
   = RedirectError RedirectError
 
-
 printSiteError :: SiteError -> String
 printSiteError e = case e of
   RedirectError r -> case r of
