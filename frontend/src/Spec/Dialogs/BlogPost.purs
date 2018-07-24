@@ -43,7 +43,7 @@ type Effects eff =
 blogPostDialog :: forall eff
                 . LocalCookingParams SiteLinks UserDetails (Effects eff)
               -> { openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
-                  } -- FIXME Just take GetBlogPost as input? Leave that up to caller
+                 } -- FIXME Just take GetBlogPost as input? Leave that up to caller
               -> R.ReactElement
 blogPostDialog
   params@{toURI}

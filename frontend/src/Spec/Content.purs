@@ -8,6 +8,7 @@ import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingStateLight, LocalCookingActionLight, performActionLocalCookingLight, whileMountedLocalCookingLight, initLocalCookingStateLight, showLocalCookingStateLight)
 import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Semantics.Blog (GetBlogPost, NewBlogPost)
+import LocalCooking.Database.Schema (StoredBlogPostCategoryId)
 
 import Prelude
 import Data.Maybe (Maybe)
@@ -66,9 +67,9 @@ spec :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { blogQueues :: BlogQueues (Effects eff)
         , newBlogPost ::
-          { dialogQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+          { dialogQueues :: OneIO.IOQueues (Effects eff) StoredBlogPostCategoryId (Maybe NewBlogPost)
           , closeQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
-          , dialogSignal :: IxSignal (Effects eff) (Maybe Unit)
+          , dialogSignal :: IxSignal (Effects eff) (Maybe StoredBlogPostCategoryId)
           , back :: Eff (Effects eff) Unit
           }
         }
@@ -91,8 +92,8 @@ spec
         isBlogPostContent link =
           let _ = unsafePerformEff $ log $ "calculating rendering: " <> showLocalCookingStateLight state.localCooking
           in  case link of
-                RootLink _ -> true
-                NewBlogPostLink -> true
+                RootLink -> true
+                NewBlogPostLink _ -> true
                 _ -> false
         blogPostsContent =
           [ root params {blogQueues,openBlogPostQueues,newBlogPostQueues: newBlogPost.dialogQueues}
@@ -114,9 +115,9 @@ content :: forall eff
          . LocalCookingParams SiteLinks UserDetails (Effects eff)
         -> { blogQueues :: BlogQueues (Effects eff)
            , newBlogPost ::
-             { dialogQueues :: OneIO.IOQueues (Effects eff) Unit (Maybe NewBlogPost)
+             { dialogQueues :: OneIO.IOQueues (Effects eff) StoredBlogPostCategoryId (Maybe NewBlogPost)
              , closeQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
-             , dialogSignal :: IxSignal (Effects eff) (Maybe Unit)
+             , dialogSignal :: IxSignal (Effects eff) (Maybe StoredBlogPostCategoryId)
              , back :: Eff (Effects eff) Unit
              }
            }
