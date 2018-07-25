@@ -3,21 +3,19 @@ module Links where
 import LocalCooking.Dependencies.Blog
   ( GetBlogPostSparrowClientQueues, GetBlogPostCategorySparrowClientQueues)
 import LocalCooking.Common.Blog
-  (BlogPostCategory, BlogPostVariant, blogPostVariantParser, printBlogPostVariant)
+  (BlogPostVariant, blogPostVariantParser, printBlogPostVariant)
 import LocalCooking.Semantics.Blog (GetBlogPost (..), GetBlogPostCategory (..))
 import LocalCooking.Database.Schema (StoredBlogPostCategoryId (..))
-import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks, class LocalCookingUserDetailsLinks, replaceState', defaultSiteLinksPathParser)
+import LocalCooking.Global.Links.Class
+  (class LocalCookingSiteLinks, class LocalCookingUserDetailsLinks, defaultSiteLinksPathParser)
 
 import Prelude
 import Data.String.Permalink (Permalink, permalinkParser)
 import Data.Maybe (Maybe (..))
 import Data.Either (Either (..))
 import Data.Tuple (Tuple (..))
-import Data.URI (Query (..))
-import Data.URI.URI as URI
 import Data.URI.Path as URIPath
-import Data.URI.Location (class ToLocation, toLocation, class FromLocation, fromLocation, Location (..), fromURI, printLocation)
-import Data.StrMap as StrMap
+import Data.URI.Location (class ToLocation, class FromLocation, Location (..))
 import Data.Path.Pathy ((</>), dir, file, rootDir, Path, Rel, File, Sandboxed)
 import Data.Generic (class Generic, gEq, gShow)
 import Data.NonEmpty ((:|))
@@ -28,19 +26,12 @@ import Text.Parsing.StringParser.Int (int)
 import Control.Parallel (parallel, sequential)
 import Control.Alternative ((<|>))
 import Control.Monad.Aff (Aff)
-import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Console (CONSOLE, warn)
 
-import DOM (DOM)
-import DOM.HTML (window)
-import DOM.HTML.Window (location, history)
-import DOM.HTML.Location (href)
-import DOM.HTML.Types (HISTORY)
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (oneOf)
-
 import Queue.One.Aff as OneIO
 
 

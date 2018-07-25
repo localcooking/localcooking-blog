@@ -4,27 +4,18 @@ module Spec.Drawers.Buttons where
 import Links (SiteLinks)
 import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingStateLight, LocalCookingActionLight, initLocalCookingStateLight, performActionLocalCookingLight, whileMountedLocalCookingLight)
-import LocalCooking.Spec.Misc.Icons.ChefHat (chefHatViewBox, chefHat)
 
 import Prelude
 import Data.UUID (GENUUID)
 import Data.Lens (Lens', lens)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Unsafe (unsafePerformEff, unsafeCoerceEff)
-import Control.Monad.Eff.Uncurried (mkEffFn1)
 import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Exception (EXCEPTION)
 
 import Thermite as T
 import React (ReactElement, createClass, createElement) as R
 
-import MaterialUI.SvgIcon (svgIcon)
-import MaterialUI.SvgIcon as SvgIcon
-import MaterialUI.Divider (divider)
-import MaterialUI.ListItem (listItem)
-import MaterialUI.ListItemIcon (listItemIcon)
-import MaterialUI.ListItemText (listItemText)
-import MaterialUI.Icons.RestaurantMenu (restaurantMenuIcon)
 
 
 

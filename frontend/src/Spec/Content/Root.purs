@@ -5,8 +5,7 @@ import User (UserDetails (..))
 import Spec.Dialogs.NewBlogPost (NewBlogPostDialog)
 import Spec.Dialogs.NewBlogPostCategory (NewBlogPostCategoryDialog)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState)
-import LocalCooking.Database.Schema (StoredBlogPostId, StoredBlogPostCategoryId)
-import LocalCooking.Semantics.Blog (BlogPostSynopsis (..), GetBlogPost, NewBlogPost, NewBlogPostCategory)
+import LocalCooking.Semantics.Blog (GetBlogPost)
 import LocalCooking.Semantics.Common (User (..))
 import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Common.User.Role (UserRole (Editor))
@@ -15,16 +14,13 @@ import LocalCooking.Common.Blog (BlogPostVariant (..))
 import Prelude
 import Data.Maybe (Maybe (..))
 import Data.UUID (GENUUID)
-import Data.URI (URI)
 import Data.URI.URI as URI
-import Data.URI.Location (Location, toLocation)
-import Data.Lens (Lens', Prism', lens, prism')
+import Data.URI.Location (toLocation)
+import Data.Lens (Lens', lens)
 import Data.Array as Array
 import Data.Enum (toEnum, fromEnum, enumFromTo)
-import Data.Argonaut.JSONUnit (JSONUnit (..))
 import Data.Argonaut.JSONTuple (JSONTuple (..))
 import Data.String.Permalink (Permalink)
-import Data.JSDate (fromDateTime, toDateString)
 import Control.Monad.Base (liftBase)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Ref (REF)
@@ -35,11 +31,8 @@ import Control.Monad.Eff.Unsafe (unsafeCoerceEff, unsafePerformEff)
 
 import Thermite as T
 import React (ReactElement, createClass, createElement) as R
-import React.DOM (div, em, img, strong, text) as R
-import React.DOM.Props as RP
+import React.DOM (text) as R
 import React.DOM.Props.PreventDefault (preventDefault)
-import React.Signal.WhileMounted as Signal
-import React.Queue.WhileMounted as Queue
 import DOM.HTML.Window.Extra (WindowSize (Laptop))
 
 import MaterialUI.Types (createStyles)
@@ -48,29 +41,10 @@ import MaterialUI.Typography as Typography
 import MaterialUI.Button (button)
 import MaterialUI.Button as Button
 import MaterialUI.Divider (divider)
-import MaterialUI.Grid (grid)
-import MaterialUI.Grid as Grid
-import MaterialUI.List (list)
-import MaterialUI.ListItem (listItem)
-import MaterialUI.ListItemText (listItemText)
-import MaterialUI.ListItemIcon (listItemIcon)
 import MaterialUI.Tabs (tabs, tab)
-import MaterialUI.CircularProgress (circularProgress)
-import MaterialUI.CircularProgress as CircularProgress
-import MaterialUI.Table (table, tableBody, tableCell, tableHead, tableRow)
-import MaterialUI.Icons.Search (searchIcon)
-import MaterialUI.Icons.PictureInPicture (pictureInPictureIcon)
-import MaterialUI.Icons.ShoppingCart (shoppingCartIcon)
-import MaterialUI.Icons.Timelapse (timelapseIcon)
-import MaterialUI.Icons.LocalShipping (localShippingIcon)
-import MaterialUI.Icons.RestaurantMenu (restaurantMenuIcon)
 
-import IxSignal.Internal (IxSignal)
-import IxSignal.Internal as IxSignal
 import IxSignal.Extra (getAvailable)
-import Queue.One as One
 import Queue.One.Aff as OneIO
-import Queue.Types (allowReading, allowWriting, WRITE)
 
 
 

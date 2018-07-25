@@ -1,11 +1,9 @@
 module Spec.Dialogs.NewBlogPostCategory where
 
-import Links (SiteLinks (RootLink, NewBlogPostCategoryLink))
+import Links (SiteLinks (NewBlogPostCategoryLink))
 import User (UserDetails)
 import LocalCooking.Main (ExtraProcessingParams)
 import LocalCooking.Thermite.Params (LocalCookingParams)
-import LocalCooking.Global.Links.Internal (PolicyLinks (..))
-import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks)
 import LocalCooking.Semantics.Blog (NewBlogPostCategory (..))
 import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Common.Blog (BlogPostVariant, BlogPostCategory (..), BlogPostPriority (..))
@@ -16,12 +14,8 @@ import LocalCooking.Spec.Common.Form.BlogPostPriority as BlogPostPriority
 import LocalCooking.Spec.Common.Form.Permalink as Permalink
 
 import Prelude
-import Data.URI.URI (print) as URI
-import Data.URI.Location (class ToLocation, toLocation)
 import Data.UUID (GENUUID)
 import Data.Maybe (Maybe (..))
-import Data.String.Permalink (Permalink)
-import Data.String.Markdown (MarkdownText (..))
 import Data.Argonaut.JSONTuple (JSONTuple (..))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Ref (REF)
@@ -30,14 +24,8 @@ import Control.Monad.Eff.Unsafe (unsafePerformEff, unsafeCoerceEff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (warn, log)
 
-import MaterialUI.Typography (typography)
-import MaterialUI.Typography as Typography
-import MaterialUI.Grid (grid)
-import MaterialUI.Grid as Grid
-
 import React (ReactElement) as R
 import React.DOM (text) as R
-import React.DOM.Props as RP
 import DOM (DOM)
 
 import Queue.Types (readOnly, writeOnly, WRITE)

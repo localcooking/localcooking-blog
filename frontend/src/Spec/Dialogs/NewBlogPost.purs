@@ -1,11 +1,9 @@
 module Spec.Dialogs.NewBlogPost where
 
-import Links (SiteLinks (RootLink, NewBlogPostLink))
+import Links (SiteLinks (NewBlogPostLink))
 import User (UserDetails)
 import LocalCooking.Main (ExtraProcessingParams)
 import LocalCooking.Thermite.Params (LocalCookingParams)
-import LocalCooking.Global.Links.Internal (PolicyLinks (..))
-import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks)
 import LocalCooking.Semantics.Blog (NewBlogPost (..))
 import LocalCooking.Database.Schema (StoredBlogPostCategoryId)
 import LocalCooking.Dependencies.Blog (BlogQueues)
@@ -19,11 +17,8 @@ import LocalCooking.Spec.Common.Form.BlogPostPriority as BlogPostPriority
 import LocalCooking.Spec.Common.Form.Checkbox as Checkbox
 
 import Prelude
-import Data.URI.URI (print) as URI
-import Data.URI.Location (class ToLocation, toLocation)
 import Data.UUID (GENUUID)
 import Data.Maybe (Maybe (..))
-import Data.String.Permalink (Permalink)
 import Data.String.Markdown (MarkdownText (..))
 import Data.Array as Array
 import Data.Generic (class Generic, gEq, gCompare)
@@ -35,14 +30,8 @@ import Control.Monad.Eff.Unsafe (unsafePerformEff, unsafeCoerceEff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (warn, log)
 
-import MaterialUI.Typography (typography)
-import MaterialUI.Typography as Typography
-import MaterialUI.Grid (grid)
-import MaterialUI.Grid as Grid
-
 import React (ReactElement) as R
 import React.DOM (text) as R
-import React.DOM.Props as RP
 import DOM (DOM)
 
 import Queue.Types (readOnly, writeOnly, WRITE)

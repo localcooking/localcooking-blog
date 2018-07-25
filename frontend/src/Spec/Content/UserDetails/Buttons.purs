@@ -1,25 +1,20 @@
 module Spec.Content.UserDetails.Buttons where
 
-import Links (SiteLinks (UserDetailsLink), UserDetailsLinks (..))
+import Links (SiteLinks)
 import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingStateLight, LocalCookingActionLight, initLocalCookingStateLight, performActionLocalCookingLight, whileMountedLocalCookingLight)
 
 import Prelude
-import Data.Maybe (Maybe (..))
 import Data.UUID (GENUUID)
 import Data.Lens (Lens', lens)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Unsafe (unsafePerformEff, unsafeCoerceEff)
-import Control.Monad.Eff.Uncurried (mkEffFn1)
 import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Exception (EXCEPTION)
 
 import Thermite as T
 import React (ReactElement, createClass, createElement) as R
 
-import MaterialUI.Divider (divider)
-import MaterialUI.ListItem (listItem)
-import MaterialUI.ListItemText (listItemText)
 
 
 

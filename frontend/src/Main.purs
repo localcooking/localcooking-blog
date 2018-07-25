@@ -7,9 +7,9 @@ import Error (SiteError (RedirectError), RedirectError (RedirectNewBlogPostNoEdi
 import Spec.Topbar.Buttons (topbarButtons)
 import Spec.Drawers.Buttons (drawersButtons)
 import Spec.Dialogs.NewBlogPost
-  ( NewBlogPostDialog, mkNewBlogPostDialogQueues, extraProcessingNewBlogPost)
+  (mkNewBlogPostDialogQueues, extraProcessingNewBlogPost)
 import Spec.Dialogs.NewBlogPostCategory
-  ( NewBlogPostCategoryDialog, mkNewBlogPostCategoryDialogQueues, extraProcessingNewBlogPostCategory)
+  (mkNewBlogPostCategoryDialogQueues, extraProcessingNewBlogPostCategory)
 import Spec.Content (content)
 import Spec.Content.UserDetails (userDetails)
 import Spec.Content.UserDetails.Buttons (userDetailsButtons)
@@ -19,34 +19,25 @@ import LocalCooking.Main (defaultMain)
 import LocalCooking.Common.User.Role (UserRole (Editor))
 import LocalCooking.Spec.Misc.Network (networkButton)
 import LocalCooking.Dependencies.Blog (blogDependencies, newBlogQueues)
-import LocalCooking.Database.Schema (StoredBlogPostCategoryId)
-import LocalCooking.Semantics.Blog (NewBlogPost, NewBlogPostCategory)
 import LocalCooking.Semantics.Common (User (..))
 import LocalCooking.Global.Links.Internal (ImageLinks (Logo40Png))
-import LocalCooking.Common.Blog (BlogPostVariant)
 
 import Prelude
 import Data.Maybe (Maybe (..))
 import Data.UUID (GENUUID)
 import Data.URI.Location (toLocation)
 import Data.Array as Array
-import Data.Argonaut.JSONTuple (JSONTuple (..))
 import Control.Monad.Aff (sequential)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Now (NOW)
-import Control.Monad.Eff.Timer (TIMER, setTimeout)
+import Control.Monad.Eff.Timer (TIMER)
 import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Ref (REF, Ref, newRef, writeRef, readRef)
-import Control.Monad.Eff.Console (CONSOLE, log, warn)
+import Control.Monad.Eff.Ref (REF)
+import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Execution.Immediate (SET_IMMEDIATE_SHIM)
 
 import React.DOM (text) as R
 import MaterialUI.InjectTapEvent (INJECT_TAP_EVENT)
-import MaterialUI.Button (button)
-import MaterialUI.Button as Button
-import MaterialUI.SvgIcon (svgIcon)
-import MaterialUI.SvgIcon as SvgIcon
-import MaterialUI.Types (createStyles)
 import DOM (DOM)
 import DOM.HTML (window)
 import DOM.HTML.Window (history)
@@ -56,12 +47,8 @@ import WebSocket (WEBSOCKET)
 import Network.HTTP.Affjax (AJAX)
 import Browser.WebStorage (WEB_STORAGE)
 import Crypto.Scrypt (SCRYPT)
-import IxSignal.Extra (onAvailableIx)
-import IxSignal.Internal (IxSignal)
 import IxSignal.Internal as IxSignal
-import Queue.Types (writeOnly, WRITE)
 import Queue.One as One
-import Queue.One.Aff as OneIO
 
 
 
@@ -115,54 +102,11 @@ main = do
           link
           exParams
         case link of
-        -- NewBlogPostCategoryLink ->
-        --   -- submit new blog post
-        --   let handleNewBlogPostCategoryDialog mNewBlogPost = do
-        --         case mNewBlogPost of
-        --           Nothing -> pure unit
-        --           Just newBlogPost ->
-        --             let withAuthToken authToken =
-        --                   let newBlogPosted mPostId = do
-        --                         case mPostId of
-        --                           Nothing -> do
-        --                             warn "Error: couldn't post new blog post?"
-        --                           Just newPostId -> do
-        --                             log $ "Blog posted! " <> show newPostId
-        --                         One.putQueue closeNewBlogPostQueue unit
-        --                   in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
-        --                         newBlogPosted
-        --                         (JSONTuple {token: authToken, subj: newBlogPost})
-        --             in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
-        --   in  OneIO.callAsyncEff newBlogPostCategoryQueues handleNewBlogPostCategoryDialog cat
-          -- NewBlogPostLink cat ->
-          --   -- submit new blog post
-          --   let handleNewBlogPostDialog mNewBlogPost = do
-          --         case mNewBlogPost of
-          --           Nothing -> pure unit
-          --           Just newBlogPost ->
-          --             let withAuthToken authToken =
-          --                   let newBlogPosted mPostId = do
-          --                         case mPostId of
-          --                           Nothing -> do
-          --                             warn "Error: couldn't post new blog post?"
-          --                           Just newPostId -> do
-          --                             log $ "Blog posted! " <> show newPostId
-          --                         One.putQueue closeNewBlogPostQueue unit
-          --                   in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
-          --                         newBlogPosted
-          --                         (JSONTuple authToken newBlogPost)
-          --             in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
-          --   in  OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog cat
-          -- FIXME when going to other links, dialogs should _close_ - does this imply
-          -- some kind of signal representing the dialog's current state?
-          -- BACK? What if nonexistent - i.e. initial pushed state _is_ the dialog?
-          -- Natural breadcrumb - use the `last` as first assignment?
-          -- AXIOM: any navigatable dialog is part of a virtual breadcrumb, denoted
-          -- by last parsed chunk...?
+          NewBlogPostLink _ -> pure unit
+          NewBlogPostCategoryLink _ -> pure unit
           _ -> do -- call close, but also set a ref that declares if a `back` should be issued...?
                   -- FIXME race condition?
             log "Closing dialog.."
-            -- One.putQueue closeNewBlogPostQueue unit
             IxSignal.setDiff Nothing newBlogPostDialogQueues.dialogSignal
             IxSignal.setDiff Nothing newBlogPostCategoryDialogQueues.dialogSignal
     -- FIXME should also include / issue siteError

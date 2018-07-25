@@ -10,17 +10,12 @@ import Links (SiteLinks (..))
 import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingStateLight, LocalCookingActionLight, performActionLocalCookingLight, whileMountedLocalCookingLight, initLocalCookingStateLight, showLocalCookingStateLight)
 import LocalCooking.Dependencies.Blog (BlogQueues)
-import LocalCooking.Semantics.Blog (GetBlogPost, NewBlogPost, NewBlogPostCategory)
-import LocalCooking.Database.Schema (StoredBlogPostCategoryId)
-import LocalCooking.Common.Blog (BlogPostVariant)
+import LocalCooking.Semantics.Blog (GetBlogPost)
 
 import Prelude
 import Data.Maybe (Maybe)
 import Data.UUID (GENUUID)
-import Data.URI (URI)
-import Data.URI.Location (Location)
-import Data.Lens (Lens', Prism', lens, prism')
-import Data.String.Permalink (Permalink)
+import Data.Lens (Lens', lens)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff, unsafePerformEff)
@@ -29,15 +24,7 @@ import Control.Monad.Eff.Exception (EXCEPTION)
 
 import Thermite as T
 import React (ReactElement, createClass, createElement) as R
-import React.DOM (text) as R
-import React.Signal.WhileMounted as Signal
 import DOM (DOM)
-import DOM.HTML.Window.Extra (WindowSize)
-
-import IxSignal.Internal (IxSignal)
-import IxSignal.Internal as IxSignal
-import Queue.Types (WRITE)
-import Queue.One as One
 import Queue.One.Aff as OneIO
 
 

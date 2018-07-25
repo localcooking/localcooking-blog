@@ -1,12 +1,10 @@
 module Spec.Content.UserDetails.General where
 
-import Spec.Icons.NewPerson (newPerson)
-
 import Prelude
 
 import Thermite as T
-import React as R
-import React.DOM as R
+import React (ReactElement, createClass, createElement) as R
+import React.DOM (text) as R
 
 import MaterialUI.Typography (typography)
 import MaterialUI.Typography as Typography
