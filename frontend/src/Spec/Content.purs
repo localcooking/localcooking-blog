@@ -2,13 +2,17 @@ module Spec.Content where
 
 import Spec.Content.Root (root)
 import Spec.Dialogs.BlogPost (blogPostDialog)
-import Spec.Dialogs.NewBlogPost (newBlogPostDialog)
+import Spec.Dialogs.NewBlogPost
+  (newBlogPostDialog, NewBlogPostDialog)
+import Spec.Dialogs.NewBlogPostCategory
+  (newBlogPostCategoryDialog, NewBlogPostCategoryDialog)
 import Links (SiteLinks (..))
 import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingStateLight, LocalCookingActionLight, performActionLocalCookingLight, whileMountedLocalCookingLight, initLocalCookingStateLight, showLocalCookingStateLight)
 import LocalCooking.Dependencies.Blog (BlogQueues)
-import LocalCooking.Semantics.Blog (GetBlogPost, NewBlogPost)
+import LocalCooking.Semantics.Blog (GetBlogPost, NewBlogPost, NewBlogPostCategory)
 import LocalCooking.Database.Schema (StoredBlogPostCategoryId)
+import LocalCooking.Common.Blog (BlogPostVariant)
 
 import Prelude
 import Data.Maybe (Maybe)
@@ -66,18 +70,17 @@ getLCState = lens (_.localCooking) (_ { localCooking = _ })
 spec :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { blogQueues :: BlogQueues (Effects eff)
-        , newBlogPost ::
-          { dialogQueues :: OneIO.IOQueues (Effects eff) StoredBlogPostCategoryId (Maybe NewBlogPost)
-          , closeQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
-          , dialogSignal :: IxSignal (Effects eff) (Maybe StoredBlogPostCategoryId)
-          , back :: Eff (Effects eff) Unit
-          }
+        , newBlogPost :: NewBlogPostDialog (Effects eff)
+        , newBlogPostCategory :: NewBlogPostCategoryDialog (Effects eff)
+        , back :: Eff (Effects eff) Unit
         }
      -> T.Spec (Effects eff) State Unit Action
 spec
   params
   { blogQueues
   , newBlogPost
+  , newBlogPostCategory
+  , back
   } = T.simpleSpec performAction render
   where
     performAction action props state = case action of
@@ -96,9 +99,15 @@ spec
                 NewBlogPostLink _ -> true
                 _ -> false
         blogPostsContent =
-          [ root params {blogQueues,openBlogPostQueues,newBlogPostQueues: newBlogPost.dialogQueues}
+          [ root params
+            { blogQueues
+            , openBlogPostQueues
+            , newBlogPost
+            , newBlogPostCategory
+            }
           , blogPostDialog params {openBlogPostQueues}
-          , newBlogPostDialog params newBlogPost
+          , newBlogPostDialog params newBlogPost {back}
+          , newBlogPostCategoryDialog params newBlogPostCategory {back}
           ]
 
     openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
@@ -114,12 +123,9 @@ spec
 content :: forall eff
          . LocalCookingParams SiteLinks UserDetails (Effects eff)
         -> { blogQueues :: BlogQueues (Effects eff)
-           , newBlogPost ::
-             { dialogQueues :: OneIO.IOQueues (Effects eff) StoredBlogPostCategoryId (Maybe NewBlogPost)
-             , closeQueue :: One.Queue (write :: WRITE) (Effects eff) Unit
-             , dialogSignal :: IxSignal (Effects eff) (Maybe StoredBlogPostCategoryId)
-             , back :: Eff (Effects eff) Unit
-             }
+           , newBlogPost :: NewBlogPostDialog (Effects eff)
+           , newBlogPostCategory :: NewBlogPostCategoryDialog (Effects eff)
+           , back :: Eff (Effects eff) Unit
            }
         -> R.ReactElement
 content

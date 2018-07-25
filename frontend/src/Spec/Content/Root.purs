@@ -1,11 +1,13 @@
 module Spec.Content.Root where
 
-import Links (SiteLinks (NewBlogPostLink))
+import Links (SiteLinks (NewBlogPostLink, NewBlogPostCategoryLink))
 import User (UserDetails (..))
+import Spec.Dialogs.NewBlogPost (NewBlogPostDialog)
+import Spec.Dialogs.NewBlogPostCategory (NewBlogPostCategoryDialog)
 import LocalCooking.Thermite.Params (LocalCookingParams, LocalCookingState, LocalCookingAction, performActionLocalCooking, whileMountedLocalCooking, initLocalCookingState)
 import LocalCooking.Database.Schema (StoredBlogPostId, StoredBlogPostCategoryId)
-import LocalCooking.Semantics.Blog (BlogPostSynopsis (..), GetBlogPost, NewBlogPost)
-import LocalCooking.Semantics.Common (WithId (..), User (..))
+import LocalCooking.Semantics.Blog (BlogPostSynopsis (..), GetBlogPost, NewBlogPost, NewBlogPostCategory)
+import LocalCooking.Semantics.Common (User (..))
 import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Common.User.Role (UserRole (Editor))
 import LocalCooking.Common.Blog (BlogPostVariant (..))
@@ -20,6 +22,7 @@ import Data.Lens (Lens', Prism', lens, prism')
 import Data.Array as Array
 import Data.Enum (toEnum, fromEnum, enumFromTo)
 import Data.Argonaut.JSONUnit (JSONUnit (..))
+import Data.Argonaut.JSONTuple (JSONTuple (..))
 import Data.String.Permalink (Permalink)
 import Data.JSDate (fromDateTime, toDateString)
 import Control.Monad.Base (liftBase)
@@ -64,6 +67,7 @@ import MaterialUI.Icons.RestaurantMenu (restaurantMenuIcon)
 
 import IxSignal.Internal (IxSignal)
 import IxSignal.Internal as IxSignal
+import IxSignal.Extra (getAvailable)
 import Queue.One as One
 import Queue.One.Aff as OneIO
 import Queue.Types (allowReading, allowWriting, WRITE)
@@ -73,7 +77,7 @@ import Queue.Types (allowReading, allowWriting, WRITE)
 type State =
   { localCooking :: LocalCookingState SiteLinks UserDetails
   , activeVariant :: BlogPostVariant
-  -- , blogPosts :: Maybe (Array (WithId StoredBlogPostId BlogPostSynopsis))
+  -- , blogPosts :: Maybe (Array (JSONTuple StoredBlogPostId BlogPostSynopsis))
   }
 
 initialState :: LocalCookingState SiteLinks UserDetails -> State
@@ -85,9 +89,10 @@ initialState localCooking =
 
 data Action
   = LocalCookingAction (LocalCookingAction SiteLinks UserDetails)
-  -- | GotBlogPosts (Array (WithId StoredBlogPostId BlogPostSynopsis))
+  -- | GotBlogPosts (Array (JSONTuple StoredBlogPostId BlogPostSynopsis))
   | OpenBlogPost BlogPostVariant Permalink Permalink
   -- | OpenNewBlogPost
+  | OpenNewBlogPostCategory
   | ChangedActiveVariant Int
 
 type Effects eff =
@@ -103,13 +108,15 @@ getLCState = lens (_.localCooking) (_ { localCooking = _ })
 spec :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
-        , newBlogPostQueues :: OneIO.IOQueues (Effects eff) StoredBlogPostCategoryId (Maybe NewBlogPost)
+        , newBlogPostCategory :: NewBlogPostCategoryDialog (Effects eff)
+        , newBlogPost :: NewBlogPostDialog (Effects eff)
         , blogQueues :: BlogQueues (Effects eff)
         }
      -> T.Spec (Effects eff) State Unit Action
 spec params
   { openBlogPostQueues
-  , newBlogPostQueues
+  , newBlogPost
+  , newBlogPostCategory
   , blogQueues
   } = T.simpleSpec performAction render
   where
@@ -122,9 +129,11 @@ spec params
         -- case mNewPost of
         --   Nothing -> pure unit
         --   Just 
+      OpenNewBlogPostCategory -> do
+        liftEff $ params.siteLinks $ NewBlogPostCategoryLink state.activeVariant
       OpenBlogPost variant category post -> do
         mPost <- liftBase $ OneIO.callAsync blogQueues.getBlogPostQueues
-          (WithId {id:variant,content:WithId{id:category,content:post}})
+          (JSONTuple variant (JSONTuple category post))
         case mPost of
           Nothing -> liftEff $ unsafeCoerceEff $ warn $ "couldn't find blog post! " <> show post
           Just post -> void $ liftBase $ OneIO.callAsync openBlogPostQueues post
@@ -145,6 +154,7 @@ spec params
       , divider {}
       , tabs
         { fullWidth: true
+        , centered: true
         , value: fromEnum state.activeVariant
         , onChange: mkEffFn2 \_ i -> dispatch (ChangedActiveVariant i)
         } $
@@ -161,9 +171,10 @@ spec params
                 , onClick: mkEffFn1 preventDefault
                 , onTouchTap: mkEffFn1 \e -> do
                     preventDefault e
-                    -- dispatch OpenNewBlogPost
-                -- , href: URI.print $ params.toURI $ toLocation NewBlogPostLink
-                } [R.text "New Blog Post"]
+                    dispatch OpenNewBlogPostCategory
+                , href: URI.print $ params.toURI $ toLocation $
+                  NewBlogPostCategoryLink state.activeVariant
+                } [R.text "New Blog Post Category"]
       -- , case state.blogPosts of
       --     Nothing -> circularProgress {mode: CircularProgress.indeterminate}
       --     Just xs
@@ -180,7 +191,7 @@ spec params
       --           ]
       --         ]
       --       , tableBody {} $
-      --         let renderPost (WithId {content: BlogPostSynopsis {author,timestamp,headline,permalink}}) =
+      --         let renderPost (JSONTuple {content: BlogPostSynopsis {author,timestamp,headline,permalink}}) =
       --               tableRow
       --                 { hover: true
       --                 , onClick: mkEffFn1 \_ -> dispatch (OpenBlogPost permalink)
@@ -198,7 +209,8 @@ root :: forall eff
       . LocalCookingParams SiteLinks UserDetails (Effects eff)
      -> { blogQueues :: BlogQueues (Effects eff)
         , openBlogPostQueues :: OneIO.IOQueues (Effects eff) GetBlogPost (Maybe Unit)
-        , newBlogPostQueues :: OneIO.IOQueues (Effects eff) StoredBlogPostCategoryId (Maybe NewBlogPost)
+        , newBlogPost :: NewBlogPostDialog (Effects eff)
+        , newBlogPostCategory :: NewBlogPostCategoryDialog (Effects eff)
         }
      -> R.ReactElement
 root params args@{blogQueues} =

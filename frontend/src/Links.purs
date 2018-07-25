@@ -4,7 +4,6 @@ import LocalCooking.Dependencies.Blog
   ( GetBlogPostSparrowClientQueues, GetBlogPostCategorySparrowClientQueues)
 import LocalCooking.Common.Blog
   (BlogPostCategory, BlogPostVariant, blogPostVariantParser, printBlogPostVariant)
-import LocalCooking.Semantics.Common (WithId (..))
 import LocalCooking.Semantics.Blog (GetBlogPost (..), GetBlogPostCategory (..))
 import LocalCooking.Database.Schema (StoredBlogPostCategoryId (..))
 import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks, class LocalCookingUserDetailsLinks, replaceState', defaultSiteLinksPathParser)
@@ -22,6 +21,7 @@ import Data.StrMap as StrMap
 import Data.Path.Pathy ((</>), dir, file, rootDir, Path, Rel, File, Sandboxed)
 import Data.Generic (class Generic, gEq, gShow)
 import Data.NonEmpty ((:|))
+import Data.Argonaut.JSONTuple (JSONTuple (..))
 import Text.Parsing.StringParser (Parser, try, runParser)
 import Text.Parsing.StringParser.String (char, string)
 import Text.Parsing.StringParser.Int (int)
@@ -95,6 +95,7 @@ data SiteLinks
   = RootLink
   | BlogPostCategoryLink BlogPostVariant Permalink
   | BlogPostLink BlogPostVariant Permalink Permalink
+  | NewBlogPostCategoryLink BlogPostVariant
   | NewBlogPostLink StoredBlogPostCategoryId
   | RegisterLink
   | UserDetailsLink (Maybe UserDetailsLinks)
@@ -106,6 +107,7 @@ instance arbitrarySiteLinks :: Arbitrary SiteLinks where
     :|  [ BlogPostCategoryLink <$> arbitrary <*> arbitrary
         , BlogPostLink <$> arbitrary <*> arbitrary <*> arbitrary
         , pure RegisterLink
+        , NewBlogPostCategoryLink <$> arbitrary
         , NewBlogPostLink <$> arbitrary
         , UserDetailsLink <$> arbitrary
         , pure EmailConfirmLink
@@ -130,6 +132,9 @@ instance toLocationSiteLinks :: ToLocation SiteLinks where
       Location (Right $ rootDir </> dir (printBlogPostVariant variant)
                                 </> dir (show cat)
                                 </> file (show post)) Nothing Nothing
+    NewBlogPostCategoryLink variant ->
+      Location (Right $ rootDir </> dir "newBlogPostCategory"
+                                </> file (show variant)) Nothing Nothing
     NewBlogPostLink cat ->
       Location (Right $ rootDir </> dir "newBlogPost"
                                 </> file (show $ (\(StoredBlogPostCategoryId x) -> x) cat)) Nothing Nothing
@@ -158,7 +163,8 @@ instance localCookingSiteLinksSiteLinks :: LocalCookingSiteLinks SiteLinks UserD
 
 initToDocumentTitle :: SiteLinks -> String
 initToDocumentTitle link = case link of
-  NewBlogPostLink cat -> "New Blog Post - " <> show ((\(StoredBlogPostCategoryId x) -> x) cat)
+  NewBlogPostCategoryLink variant -> "New Blog Post Category - " <> show variant <> " - "
+  NewBlogPostLink cat -> "New Blog Post - " <> show ((\(StoredBlogPostCategoryId x) -> x) cat) <> " - "
   RootLink -> ""
   BlogPostCategoryLink variant cat ->
     show cat <> " - " <> printBlogPostVariant variant <> " - "
@@ -175,7 +181,7 @@ asyncToDocumentTitle :: forall eff
                      -> Aff (ref :: REF, console :: CONSOLE | eff) String
 asyncToDocumentTitle {getBlogPostCategoryQueues,getBlogPostQueues} link = case link of
   BlogPostCategoryLink variant cat -> do
-    mCat <- OneIO.callAsync getBlogPostCategoryQueues (WithId {id:variant,content:cat})
+    mCat <- OneIO.callAsync getBlogPostCategoryQueues (JSONTuple variant cat)
     case mCat of
       Nothing -> do
         liftEff $ warn $ "Error - couldn't find blog post category permalink - " <> show cat
@@ -183,8 +189,8 @@ asyncToDocumentTitle {getBlogPostCategoryQueues,getBlogPostQueues} link = case l
       Just (GetBlogPostCategory {name}) -> pure $ show name <> " - " <> show variant <> " - "
   BlogPostLink variant cat post -> do
     Tuple mCat mPost <- sequential $
-      Tuple <$> parallel (OneIO.callAsync getBlogPostCategoryQueues (WithId {id:variant,content:cat}))
-            <*> parallel (OneIO.callAsync getBlogPostQueues (WithId {id:variant,content:WithId {id:cat,content:post}}))
+      Tuple <$> parallel (OneIO.callAsync getBlogPostCategoryQueues (JSONTuple variant cat))
+            <*> parallel (OneIO.callAsync getBlogPostQueues (JSONTuple variant (JSONTuple cat post)))
     case mCat of
       Nothing -> do
         liftEff $ warn $ "Error - couldn't find blog post category permalink - " <> show cat
@@ -224,8 +230,12 @@ siteLinksPathParser = do
         post <- permalinkParser
         pure (BlogPostLink variant cat post)
       def = defaultSiteLinksPathParser userDetailsLinksParser Nothing
-      newBlogPost = NewBlogPostLink <<< StoredBlogPostCategoryId <$> (string "newBlogPost" *> divider *> int)
-  try newBlogPost
+      newBlogPostCategory = NewBlogPostCategoryLink <$>
+        (string "newBlogPostCategory" *> blogPostVariantParser)
+      newBlogPost = NewBlogPostLink <<< StoredBlogPostCategoryId <$>
+        (string "newBlogPost" *> divider *> int)
+  try newBlogPostCategory
+    <|> try newBlogPost
     <|> try blogPostCategory
     <|> try blogPost
     <|> def

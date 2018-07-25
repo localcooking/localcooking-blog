@@ -1,12 +1,15 @@
 module Spec.Dialogs.NewBlogPostCategory where
 
-import Links (SiteLinks (RootLink))
+import Links (SiteLinks (RootLink, NewBlogPostCategoryLink))
 import User (UserDetails)
+import LocalCooking.Main (ExtraProcessingParams)
 import LocalCooking.Thermite.Params (LocalCookingParams)
 import LocalCooking.Global.Links.Internal (PolicyLinks (..))
 import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks)
 import LocalCooking.Semantics.Blog (NewBlogPostCategory (..))
+import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Common.Blog (BlogPostVariant, BlogPostCategory (..), BlogPostPriority (..))
+import LocalCooking.Common.AccessToken.Auth (AuthToken)
 import LocalCooking.Spec.Dialogs.Generic (genericDialog)
 import LocalCooking.Spec.Common.Form.BlogPostCategory as BlogPostCategory
 import LocalCooking.Spec.Common.Form.BlogPostPriority as BlogPostPriority
@@ -19,11 +22,13 @@ import Data.UUID (GENUUID)
 import Data.Maybe (Maybe (..))
 import Data.String.Permalink (Permalink)
 import Data.String.Markdown (MarkdownText (..))
+import Data.Argonaut.JSONTuple (JSONTuple (..))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
+import Control.Monad.Eff.Unsafe (unsafePerformEff, unsafeCoerceEff)
 import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (warn, log)
 
 import MaterialUI.Typography (typography)
 import MaterialUI.Typography as Typography
@@ -41,6 +46,7 @@ import Queue.One as One
 import IxQueue as IxQueue
 import IxSignal.Internal (IxSignal)
 import IxSignal.Internal as IxSignal
+import IxSignal.Extra (onAvailableIx)
 
 
 type Effects eff =
@@ -51,13 +57,71 @@ type Effects eff =
   | eff)
 
 
+-- TODO integrate
+type NewBlogPostCategoryDialog eff =
+  { dialogQueues :: OneIO.IOQueues eff BlogPostVariant (Maybe NewBlogPostCategory)
+  , closeQueue   :: One.Queue (write :: WRITE) eff Unit
+  , dialogSignal :: IxSignal eff (Maybe BlogPostVariant)
+  }
+
+mkNewBlogPostCategoryDialogQueues :: forall eff
+                                 . Eff (ref :: REF | eff) (NewBlogPostCategoryDialog (ref :: REF | eff))
+mkNewBlogPostCategoryDialogQueues = do
+  dialogQueues <- OneIO.newIOQueues
+  closeQueue <- writeOnly <$> One.newQueue
+  dialogSignal <- IxSignal.make Nothing
+  pure
+    { dialogQueues
+    , closeQueue
+    , dialogSignal
+    }
+
+
+extraProcessingNewBlogPostCategory :: forall eff
+                                    . NewBlogPostCategoryDialog (Effects eff)
+                                   -> BlogQueues (Effects eff)
+                                   -> { authTokenSignal :: IxSignal (Effects eff) (Maybe AuthToken)
+                                      }
+                                   -> SiteLinks
+                                   -> ExtraProcessingParams SiteLinks UserDetails (Effects eff)
+                                   -> Eff (Effects eff) Unit
+extraProcessingNewBlogPostCategory
+  {dialogQueues,closeQueue,dialogSignal}
+  blogQueues
+  {authTokenSignal}
+  siteLinks
+  params
+  = case siteLinks of
+  NewBlogPostCategoryLink variant -> do
+    let handleNewBlogPostCategoryDialog mNewBlogPost = case mNewBlogPost of
+          Nothing -> pure unit -- closed dialog
+          Just newBlogPost -> do
+            let withAuthToken authToken = do
+                  let newBlogPosted mPostCatId = do
+                        unsafeCoerceEff $ case mPostCatId of
+                          Nothing -> do
+                            warn "Error: couldn't new blog post category?"
+                          Just newPostCatId -> do
+                            log $ "Blog category created! " <> show newPostCatId
+                            -- FIXME do something with cat ID?
+                        One.putQueue closeQueue unit
+                  OneIO.callAsyncEff
+                    blogQueues.newBlogPostCategoryQueues
+                    newBlogPosted
+                    (JSONTuple authToken newBlogPost)
+            onAvailableIx withAuthToken "newBlogPost" authTokenSignal
+    OneIO.callAsyncEff
+      dialogQueues
+      handleNewBlogPostCategoryDialog
+      variant
+  _ -> pure unit
+
+
 
 newBlogPostCategoryDialog :: forall eff
                            . LocalCookingParams SiteLinks UserDetails (Effects eff)
-                          -> { dialogQueues :: OneIO.IOQueues (Effects eff) BlogPostVariant (Maybe NewBlogPostCategory)
-                             , closeQueue   :: One.Queue (write :: WRITE) (Effects eff) Unit
-                             , dialogSignal :: IxSignal (Effects eff) (Maybe BlogPostVariant)
-                             , back         :: Eff (Effects eff) Unit
+                          -> NewBlogPostCategoryDialog (Effects eff)
+                          -> { back :: Eff (Effects eff) Unit
                              } -- FIXME Just take GetBlogPost as input? Leave that up to caller
                           -> R.ReactElement
 newBlogPostCategoryDialog
@@ -65,7 +129,8 @@ newBlogPostCategoryDialog
   { dialogQueues
   , closeQueue
   , dialogSignal
-  , back
+  }
+  { back
   } =
   genericDialog
   params

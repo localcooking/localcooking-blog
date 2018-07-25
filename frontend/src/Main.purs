@@ -2,10 +2,14 @@ module Main where
 
 import Colors (palette)
 import User (UserDetails (..), PreUserDetails (..))
-import Links (SiteLinks (RootLink, NewBlogPostLink), initToDocumentTitle, asyncToDocumentTitle)
+import Links (SiteLinks (RootLink, NewBlogPostLink, NewBlogPostCategoryLink), initToDocumentTitle, asyncToDocumentTitle)
 import Error (SiteError (RedirectError), RedirectError (RedirectNewBlogPostNoEditor))
 import Spec.Topbar.Buttons (topbarButtons)
 import Spec.Drawers.Buttons (drawersButtons)
+import Spec.Dialogs.NewBlogPost
+  ( NewBlogPostDialog, mkNewBlogPostDialogQueues, extraProcessingNewBlogPost)
+import Spec.Dialogs.NewBlogPostCategory
+  ( NewBlogPostCategoryDialog, mkNewBlogPostCategoryDialogQueues, extraProcessingNewBlogPostCategory)
 import Spec.Content (content)
 import Spec.Content.UserDetails (userDetails)
 import Spec.Content.UserDetails.Buttons (userDetailsButtons)
@@ -15,17 +19,18 @@ import LocalCooking.Main (defaultMain)
 import LocalCooking.Common.User.Role (UserRole (Editor))
 import LocalCooking.Spec.Misc.Network (networkButton)
 import LocalCooking.Dependencies.Blog (blogDependencies, newBlogQueues)
-import LocalCooking.Dependencies.AccessToken.Generic (AccessInitIn (..))
 import LocalCooking.Database.Schema (StoredBlogPostCategoryId)
-import LocalCooking.Semantics.Blog (NewBlogPost)
+import LocalCooking.Semantics.Blog (NewBlogPost, NewBlogPostCategory)
 import LocalCooking.Semantics.Common (User (..))
 import LocalCooking.Global.Links.Internal (ImageLinks (Logo40Png))
+import LocalCooking.Common.Blog (BlogPostVariant)
 
 import Prelude
 import Data.Maybe (Maybe (..))
 import Data.UUID (GENUUID)
 import Data.URI.Location (toLocation)
 import Data.Array as Array
+import Data.Argonaut.JSONTuple (JSONTuple (..))
 import Control.Monad.Aff (sequential)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Now (NOW)
@@ -86,13 +91,8 @@ main = do
   blogQueues <- newBlogQueues
   siteErrorQueue <- One.newQueue
 
-  ( newBlogPostQueues :: OneIO.IOQueues Effects StoredBlogPostCategoryId (Maybe NewBlogPost)
-    ) <- OneIO.newIOQueues
-  ( closeNewBlogPostQueue :: One.Queue (write :: WRITE) Effects Unit
-    ) <- writeOnly <$> One.newQueue
-  ( newBlogPostSignal :: IxSignal Effects (Maybe StoredBlogPostCategoryId)
-    ) <- IxSignal.make Nothing
-
+  newBlogPostDialogQueues <- mkNewBlogPostDialogQueues
+  newBlogPostCategoryDialogQueues <- mkNewBlogPostCategoryDialogQueues
 
 
   defaultMain
@@ -101,37 +101,70 @@ main = do
     , deps: do
         blogDependencies blogQueues
     -- FIXME align with all redirects...?
-    , extraProcessing: \link {back,authTokenSignal} -> case link of
-        NewBlogPostLink cat ->
-          -- submit new blog post
-          let handleNewBlogPostDialog mNewBlogPost = do
-                case mNewBlogPost of
-                  Nothing -> pure unit
-                  Just newBlogPost ->
-                    let withAuthToken authToken =
-                          let newBlogPosted mPostId = do
-                                case mPostId of
-                                  Nothing -> do
-                                    warn "Error: couldn't post new blog post?"
-                                  Just newPostId -> do
-                                    log $ "Blog posted! " <> show newPostId
-                                One.putQueue closeNewBlogPostQueue unit
-                          in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
-                                newBlogPosted
-                                (AccessInitIn {token: authToken, subj: newBlogPost})
-                    in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
-          in  OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog cat
-        -- FIXME when going to other links, dialogs should _close_ - does this imply
-        -- some kind of signal representing the dialog's current state?
-        -- BACK? What if nonexistent - i.e. initial pushed state _is_ the dialog?
-        -- Natural breadcrumb - use the `last` as first assignment?
-        -- AXIOM: any navigatable dialog is part of a virtual breadcrumb, denoted
-        -- by last parsed chunk...?
-        _ -> do -- call close, but also set a ref that declares if a `back` should be issued...?
-                -- FIXME race condition?
-          log "Closing dialog.."
-          -- One.putQueue closeNewBlogPostQueue unit
-          IxSignal.setDiff Nothing newBlogPostSignal
+    , extraProcessing: \link exParams@{back,authTokenSignal} -> do
+        extraProcessingNewBlogPost
+          newBlogPostDialogQueues
+          blogQueues
+          {authTokenSignal}
+          link
+          exParams
+        extraProcessingNewBlogPostCategory
+          newBlogPostCategoryDialogQueues
+          blogQueues
+          {authTokenSignal}
+          link
+          exParams
+        case link of
+        -- NewBlogPostCategoryLink ->
+        --   -- submit new blog post
+        --   let handleNewBlogPostCategoryDialog mNewBlogPost = do
+        --         case mNewBlogPost of
+        --           Nothing -> pure unit
+        --           Just newBlogPost ->
+        --             let withAuthToken authToken =
+        --                   let newBlogPosted mPostId = do
+        --                         case mPostId of
+        --                           Nothing -> do
+        --                             warn "Error: couldn't post new blog post?"
+        --                           Just newPostId -> do
+        --                             log $ "Blog posted! " <> show newPostId
+        --                         One.putQueue closeNewBlogPostQueue unit
+        --                   in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
+        --                         newBlogPosted
+        --                         (JSONTuple {token: authToken, subj: newBlogPost})
+        --             in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
+        --   in  OneIO.callAsyncEff newBlogPostCategoryQueues handleNewBlogPostCategoryDialog cat
+          -- NewBlogPostLink cat ->
+          --   -- submit new blog post
+          --   let handleNewBlogPostDialog mNewBlogPost = do
+          --         case mNewBlogPost of
+          --           Nothing -> pure unit
+          --           Just newBlogPost ->
+          --             let withAuthToken authToken =
+          --                   let newBlogPosted mPostId = do
+          --                         case mPostId of
+          --                           Nothing -> do
+          --                             warn "Error: couldn't post new blog post?"
+          --                           Just newPostId -> do
+          --                             log $ "Blog posted! " <> show newPostId
+          --                         One.putQueue closeNewBlogPostQueue unit
+          --                   in  OneIO.callAsyncEff blogQueues.newBlogPostQueues
+          --                         newBlogPosted
+          --                         (JSONTuple authToken newBlogPost)
+          --             in  onAvailableIx withAuthToken "newBlogPost" authTokenSignal
+          --   in  OneIO.callAsyncEff newBlogPostQueues handleNewBlogPostDialog cat
+          -- FIXME when going to other links, dialogs should _close_ - does this imply
+          -- some kind of signal representing the dialog's current state?
+          -- BACK? What if nonexistent - i.e. initial pushed state _is_ the dialog?
+          -- Natural breadcrumb - use the `last` as first assignment?
+          -- AXIOM: any navigatable dialog is part of a virtual breadcrumb, denoted
+          -- by last parsed chunk...?
+          _ -> do -- call close, but also set a ref that declares if a `back` should be issued...?
+                  -- FIXME race condition?
+            log "Closing dialog.."
+            -- One.putQueue closeNewBlogPostQueue unit
+            IxSignal.setDiff Nothing newBlogPostDialogQueues.dialogSignal
+            IxSignal.setDiff Nothing newBlogPostCategoryDialogQueues.dialogSignal
     -- FIXME should also include / issue siteError
     , extraRedirect: \link mDetails -> case link of
         NewBlogPostLink _ -> case mDetails of
@@ -154,12 +187,9 @@ main = do
       }
     , content: \params -> content params
       { blogQueues
-      , newBlogPost:
-        { dialogQueues: newBlogPostQueues
-        , closeQueue: closeNewBlogPostQueue
-        , dialogSignal: newBlogPostSignal
-        , back: back =<< history =<< window
-        }
+      , newBlogPost: newBlogPostDialogQueues
+      , newBlogPostCategory: newBlogPostCategoryDialogQueues
+      , back: back =<< history =<< window
       }
     , userDetails:
       { buttons: userDetailsButtons
