@@ -84,6 +84,7 @@ spec
           in  case link of
                 RootLink -> true
                 NewBlogPostLink _ -> true
+                NewBlogPostCategoryLink _ -> true
                 _ -> false
         blogPostsContent =
           [ root params
