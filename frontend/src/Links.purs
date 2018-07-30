@@ -1,13 +1,19 @@
 module Links where
 
+import Error (SiteError (..))
 import LocalCooking.Dependencies.Blog
   ( GetBlogPostSparrowClientQueues, GetBlogPostCategorySparrowClientQueues)
 import LocalCooking.Common.Blog
   (BlogPostVariant, blogPostVariantParser, printBlogPostVariant)
-import LocalCooking.Semantics.Blog (GetBlogPost (..), GetBlogPostCategory (..))
+import LocalCooking.Semantics.Blog
+  ( GetBlogPost (..), GetBlogPostCategory (..)
+  , BlogPostCategoryUnique (..), BlogPostUnique (..))
+import LocalCooking.Semantics.Content (EditorExists (..))
 import LocalCooking.Database.Schema (StoredBlogPostCategoryId (..))
+import LocalCooking.Global.Error (GlobalError)
 import LocalCooking.Global.Links.Class
-  (class LocalCookingSiteLinks, class LocalCookingUserDetailsLinks, defaultSiteLinksPathParser)
+  ( class LocalCookingSiteLinks, class LocalCookingUserDetailsLinks
+  , defaultSiteLinksPathParser)
 
 import Prelude
 import Data.String.Permalink (Permalink, permalinkParser)
@@ -28,10 +34,11 @@ import Control.Alternative ((<|>))
 import Control.Monad.Aff (Aff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Ref (REF)
-import Control.Monad.Eff.Console (CONSOLE, warn)
 
 import Test.QuickCheck (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (oneOf)
+import Queue.Types (WRITE)
+import Queue.One as One
 import Queue.One.Aff as OneIO
 
 
@@ -165,34 +172,61 @@ initToDocumentTitle link = case link of
 
 
 asyncToDocumentTitle :: forall eff
-                      . { getBlogPostCategoryQueues :: GetBlogPostCategorySparrowClientQueues (ref :: REF, console :: CONSOLE | eff)
-                        , getBlogPostQueues :: GetBlogPostSparrowClientQueues (ref :: REF, console :: CONSOLE | eff)
+                      . { getBlogPostCategoryQueues :: GetBlogPostCategorySparrowClientQueues (ref :: REF | eff)
+                        , getBlogPostQueues :: GetBlogPostSparrowClientQueues (ref :: REF | eff)
                         }
+                     -> One.Queue (write :: WRITE) (ref :: REF | eff) SiteError
+                     -> One.Queue (write :: WRITE) (ref :: REF | eff) GlobalError
                      -> SiteLinks
-                     -> Aff (ref :: REF, console :: CONSOLE | eff) String
-asyncToDocumentTitle {getBlogPostCategoryQueues,getBlogPostQueues} link = case link of
+                     -> Aff (ref :: REF | eff) String
+asyncToDocumentTitle
+  { getBlogPostCategoryQueues
+  , getBlogPostQueues
+  } siteErrorQueue globalErrorQueue link = case link of
   BlogPostCategoryLink variant cat -> do
     mCat <- OneIO.callAsync getBlogPostCategoryQueues (JSONTuple variant cat)
+    let def = show cat <> " - " <> printBlogPostVariant variant <> " - "
     case mCat of
       Nothing -> do
-        liftEff $ warn $ "Error - couldn't find blog post category permalink - " <> show cat
-        pure $ show cat <> " - " <> printBlogPostVariant variant <> " - "
-      Just (GetBlogPostCategory {name}) -> pure $ show name <> " - " <> show variant <> " - "
+        liftEff $ One.putQueue siteErrorQueue (SiteErrorBlogPostCategoryNotFound variant cat)
+        pure def
+      Just mUnique -> case mUnique of
+        BlogPostCategoryNotUnique -> do
+          liftEff $ One.putQueue siteErrorQueue (SiteErrorBlogPostCategoryNotUnique variant cat)
+          pure def
+        BlogPostCategoryUnique (GetBlogPostCategory {name}) ->
+          pure $ show name <> " - " <> show variant <> " - "
   BlogPostLink variant cat post -> do
     Tuple mCat mPost <- sequential $
       Tuple <$> parallel (OneIO.callAsync getBlogPostCategoryQueues (JSONTuple variant cat))
             <*> parallel (OneIO.callAsync getBlogPostQueues (JSONTuple variant (JSONTuple cat post)))
+    let def = show post <> " - " <> show cat <> " - " <> printBlogPostVariant variant <> " - "
     case mCat of
       Nothing -> do
-        liftEff $ warn $ "Error - couldn't find blog post category permalink - " <> show cat
-        pure $ show post <> " - " <> show cat <> " - " <> printBlogPostVariant variant <> " - "
-      Just (GetBlogPostCategory {name}) ->
-        case mPost of
+        liftEff $ One.putQueue siteErrorQueue (SiteErrorBlogPostCategoryNotFound variant cat)
+        pure def
+      Just mUnique -> case mUnique of
+        BlogPostCategoryNotUnique -> do
+          liftEff $ One.putQueue siteErrorQueue (SiteErrorBlogPostCategoryNotUnique variant cat)
+          pure def
+        BlogPostCategoryUnique (GetBlogPostCategory {name}) -> case mPost of
           Nothing -> do
-            liftEff $ warn $ "Error - couldn't find blog post permalink - " <> show post
-            pure $ show post <> " - " <> show cat <> " - " <> printBlogPostVariant variant <> " - "
-          Just (GetBlogPost {headline}) ->
-            pure $ headline <> " - " <> show name <> " - " <> show variant <> " - "
+            liftEff $ One.putQueue siteErrorQueue (SiteErrorBlogPostNotFound variant cat post)
+            pure def
+          Just mCatUnique -> case mCatUnique of
+            BlogPostCategoryNotUnique -> do
+              liftEff $ One.putQueue siteErrorQueue (SiteErrorBlogPostCategoryNotUnique variant cat)
+              pure def
+            BlogPostCategoryUnique mPostUnique -> case mPostUnique of
+              BlogPostNotUnique -> do
+                liftEff $ One.putQueue siteErrorQueue (SiteErrorBlogPostNotUnique variant cat post)
+                pure def
+              BlogPostUnique mEditorExists -> case mEditorExists of
+                EditorDoesntExist -> do
+                  liftEff $ One.putQueue siteErrorQueue SiteErrorEditorDoesntExist
+                  pure def
+                EditorExists (GetBlogPost {headline}) ->
+                  pure $ headline <> " - " <> show name <> " - " <> show variant <> " - "
   _ -> pure (initToDocumentTitle link)
 
 

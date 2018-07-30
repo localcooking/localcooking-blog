@@ -105,12 +105,12 @@ spec params
         --   Just 
       OpenNewBlogPostCategory -> do
         liftEff $ params.siteLinks $ NewBlogPostCategoryLink state.activeVariant
-      OpenBlogPost variant category post -> do
-        mPost <- liftBase $ OneIO.callAsync blogQueues.getBlogPostQueues
-          (JSONTuple variant (JSONTuple category post))
-        case mPost of
-          Nothing -> liftEff $ unsafeCoerceEff $ warn $ "couldn't find blog post! " <> show post
-          Just post -> void $ liftBase $ OneIO.callAsync openBlogPostQueues post
+      OpenBlogPost variant category post -> pure unit -- Use sitelinks
+        -- mPost <- liftBase $ OneIO.callAsync blogQueues.getBlogPostQueues
+        --   (JSONTuple variant (JSONTuple category post))
+        -- case mPost of
+        --   Nothing -> liftEff $ One.putQueue params.globalErrorQueue
+        --   Just post -> void $ liftBase $ OneIO.callAsync openBlogPostQueues post
       ChangedActiveVariant i -> case toEnum i of
         Nothing -> liftEff $ unsafeCoerceEff $ warn $ "Couldn't fromEnum to a BlogPostVariant: " <> show i
         Just x -> void $ T.cotransform _ { activeVariant = x }

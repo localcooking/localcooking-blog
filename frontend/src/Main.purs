@@ -48,6 +48,7 @@ import Network.HTTP.Affjax (AJAX)
 import Browser.WebStorage (WEB_STORAGE)
 import Crypto.Scrypt (SCRYPT)
 import IxSignal.Internal as IxSignal
+import Queue.Types (writeOnly)
 import Queue.One as One
 
 
@@ -122,6 +123,7 @@ main = do
         { getBlogPostQueues: blogQueues.getBlogPostQueues
         , getBlogPostCategoryQueues: blogQueues.getBlogPostCategoryQueues
         }
+        (writeOnly siteErrorQueue)
     , leftDrawer:
       { buttons: drawersButtons
       }
