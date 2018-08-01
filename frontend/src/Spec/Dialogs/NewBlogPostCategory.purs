@@ -8,10 +8,10 @@ import LocalCooking.Semantics.Blog (NewBlogPostCategory (..))
 import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Common.Blog (BlogPostVariant, BlogPostCategory (..), BlogPostPriority (..))
 import LocalCooking.Common.AccessToken.Auth (AuthToken)
-import LocalCooking.Spec.Dialogs.Generic (genericDialog)
 import LocalCooking.Spec.Common.Form.BlogPostCategory as BlogPostCategory
 import LocalCooking.Spec.Common.Form.BlogPostPriority as BlogPostPriority
-import LocalCooking.Spec.Common.Form.Permalink as Permalink
+import Components.Form.Permalink as Permalink
+import Components.Dialog.Generic (genericDialog)
 
 import Prelude
 import Data.UUID (GENUUID)
@@ -68,15 +68,12 @@ mkNewBlogPostCategoryDialogQueues = do
 extraProcessingNewBlogPostCategory :: forall eff
                                     . NewBlogPostCategoryDialog (Effects eff)
                                    -> BlogQueues (Effects eff)
-                                   -> { authTokenSignal :: IxSignal (Effects eff) (Maybe AuthToken)
-                                      }
                                    -> SiteLinks
                                    -> ExtraProcessingParams SiteLinks UserDetails (Effects eff)
                                    -> Eff (Effects eff) Unit
 extraProcessingNewBlogPostCategory
   {dialogQueues,closeQueue,dialogSignal}
   blogQueues
-  {authTokenSignal}
   siteLinks
   params
   = case siteLinks of
@@ -97,7 +94,7 @@ extraProcessingNewBlogPostCategory
                     blogQueues.newBlogPostCategoryQueues
                     newBlogPosted
                     (JSONTuple authToken newBlogPost)
-            onAvailableIx withAuthToken "newBlogPost" authTokenSignal
+            onAvailableIx withAuthToken "newBlogPost" params.authTokenSignal
     OneIO.callAsyncEff
       dialogQueues
       handleNewBlogPostCategoryDialog
@@ -121,7 +118,6 @@ newBlogPostCategoryDialog
   { back
   } =
   genericDialog
-  params
   { dialogQueue: dialogQueues
   , closeQueue: Just closeQueue
   , dialogSignal: Just dialogSignal
@@ -172,6 +168,7 @@ newBlogPostCategoryDialog
         One.putQueue permalinkSetQueue (Permalink.PermalinkPartial "")
         One.putQueue blogPostPrioritySetQueue (BlogPostPriority 0)
     }
+  , windowSizeSignal: params.windowSizeSignal
   }
   where
     blogPostCategoryUpdatedQueue = unsafePerformEff $ readOnly <$> IxQueue.newIxQueue

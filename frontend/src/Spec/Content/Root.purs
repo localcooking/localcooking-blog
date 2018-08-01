@@ -1,6 +1,6 @@
 module Spec.Content.Root where
 
-import Links (SiteLinks (NewBlogPostLink, NewBlogPostCategoryLink))
+import Links (SiteLinks (NewBlogPostLink, NewBlogPostCategoryLink, BlogPostLink))
 import User (UserDetails (..))
 import Spec.Dialogs.NewBlogPost (NewBlogPostDialog)
 import Spec.Dialogs.NewBlogPostCategory (NewBlogPostCategoryDialog)
@@ -103,9 +103,10 @@ spec params
         -- case mNewPost of
         --   Nothing -> pure unit
         --   Just 
-      OpenNewBlogPostCategory -> do
+      OpenNewBlogPostCategory ->
         liftEff $ params.siteLinks $ NewBlogPostCategoryLink state.activeVariant
-      OpenBlogPost variant category post -> pure unit -- Use sitelinks
+      OpenBlogPost variant category post ->
+        liftEff $ params.siteLinks $ BlogPostLink variant category post
         -- mPost <- liftBase $ OneIO.callAsync blogQueues.getBlogPostQueues
         --   (JSONTuple variant (JSONTuple category post))
         -- case mPost of

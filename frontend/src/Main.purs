@@ -89,17 +89,15 @@ main = do
     , deps: do
         blogDependencies blogQueues
     -- FIXME align with all redirects...?
-    , extraProcessing: \link exParams@{back,authTokenSignal} -> do
+    , extraProcessing: \link exParams@{back} -> do
         extraProcessingNewBlogPost
           newBlogPostDialogQueues
           blogQueues
-          {authTokenSignal}
           link
           exParams
         extraProcessingNewBlogPostCategory
           newBlogPostCategoryDialogQueues
           blogQueues
-          {authTokenSignal}
           link
           exParams
         case link of
@@ -113,6 +111,11 @@ main = do
     -- FIXME should also include / issue siteError
     , extraRedirect: \link mDetails -> case link of
         NewBlogPostLink _ -> case mDetails of
+          Nothing -> Just { siteLink: RootLink, siteError: RedirectError RedirectNewBlogPostNoEditor }
+          Just (UserDetails {user: User {roles}})
+            | Array.elem Editor roles -> Nothing
+            | otherwise -> Just { siteLink: RootLink, siteError: RedirectError RedirectNewBlogPostNoEditor }
+        NewBlogPostCategoryLink _ -> case mDetails of
           Nothing -> Just { siteLink: RootLink, siteError: RedirectError RedirectNewBlogPostNoEditor }
           Just (UserDetails {user: User {roles}})
             | Array.elem Editor roles -> Nothing

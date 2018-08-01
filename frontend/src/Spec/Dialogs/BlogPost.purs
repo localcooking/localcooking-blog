@@ -5,8 +5,8 @@ import User (UserDetails)
 import LocalCooking.Thermite.Params (LocalCookingParams)
 import LocalCooking.Global.Links.Internal (PolicyLinks (..))
 import LocalCooking.Global.Links.Class (class LocalCookingSiteLinks)
-import LocalCooking.Spec.Dialogs.Generic (genericDialog)
 import LocalCooking.Semantics.Blog (GetBlogPost (..))
+import Components.Dialog.Generic (genericDialog)
 
 import Prelude
 import Data.URI.URI (print) as URI
@@ -50,7 +50,6 @@ blogPostDialog
   { openBlogPostQueues
   } =
   genericDialog
-  params
   { dialogQueue: openBlogPostQueues
   , closeQueue: Nothing
   , dialogSignal: Nothing
@@ -76,4 +75,5 @@ blogPostDialog
     , obtain: \_ -> pure (Just unit)
     , reset: pure unit
     }
+  , windowSizeSignal: params.windowSizeSignal
   }
