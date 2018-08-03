@@ -7,7 +7,6 @@ import LocalCooking.Thermite.Params (LocalCookingParams)
 import LocalCooking.Semantics.Blog (NewBlogPostCategory (..))
 import LocalCooking.Dependencies.Blog (BlogQueues)
 import LocalCooking.Common.Blog (BlogPostVariant, BlogPostCategory (..), BlogPostPriority (..))
-import LocalCooking.Common.AccessToken.Auth (AuthToken)
 import LocalCooking.Spec.Common.Form.BlogPostCategory as BlogPostCategory
 import LocalCooking.Spec.Common.Form.BlogPostPriority as BlogPostPriority
 import Components.Form.Permalink as Permalink
@@ -32,6 +31,7 @@ import Queue.Types (readOnly, writeOnly, WRITE)
 import Queue.One.Aff as OneIO
 import Queue.One as One
 import IxQueue as IxQueue
+import Signal.Types (READ, WRITE) as S
 import IxSignal.Internal (IxSignal)
 import IxSignal.Internal as IxSignal
 import IxSignal.Extra (onAvailableIx)
@@ -49,7 +49,7 @@ type Effects eff =
 type NewBlogPostCategoryDialog eff =
   { dialogQueues :: OneIO.IOQueues eff BlogPostVariant (Maybe NewBlogPostCategory)
   , closeQueue   :: One.Queue (write :: WRITE) eff Unit
-  , dialogSignal :: IxSignal eff (Maybe BlogPostVariant)
+  , dialogSignal :: IxSignal (read :: S.READ, write :: S.WRITE) eff (Maybe BlogPostVariant)
   }
 
 mkNewBlogPostCategoryDialogQueues :: forall eff
@@ -81,7 +81,7 @@ extraProcessingNewBlogPostCategory
     let handleNewBlogPostCategoryDialog mNewBlogPost = case mNewBlogPost of
           Nothing -> pure unit -- closed dialog
           Just newBlogPost -> do
-            let withAuthToken authToken = do
+            let withSessionToken sessionToken = do
                   let newBlogPosted mPostCatId = do
                         unsafeCoerceEff $ case mPostCatId of
                           Nothing -> do
@@ -93,8 +93,8 @@ extraProcessingNewBlogPostCategory
                   OneIO.callAsyncEff
                     blogQueues.newBlogPostCategoryQueues
                     newBlogPosted
-                    (JSONTuple authToken newBlogPost)
-            onAvailableIx withAuthToken "newBlogPost" params.authTokenSignal
+                    (JSONTuple sessionToken newBlogPost)
+            onAvailableIx withSessionToken "newBlogPost" params.sessionTokenSignal
     OneIO.callAsyncEff
       dialogQueues
       handleNewBlogPostCategoryDialog
